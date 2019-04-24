@@ -5,9 +5,13 @@ TFT_eSPI tft = TFT_eSPI();
 
 #define IDLE 0
 #define REGISTER 1
+#define RECORD_NAME 2
 
 #define PRESSED 0
 #define UNPRESSED 1
+
+#define SUCCESS 0
+#define FAIL 1
 
 char network[] = "MIT GUEST";
 char password[] = "";
@@ -25,8 +29,13 @@ char response_buffer[OUT_BUFFER_SIZE]; //char array buffer to hold HTTP response
 const uint8_t PIN_1 = 16; //button 1
 const uint8_t PIN_2 = 5; //button 2
 
+uint32_t primary_timer;
+uint32_t timeout_timer;
+
+const uint8_t TIMEOUT_PERIOD = 2500; //milliseconds
 
 uint8_t toggle;
+uint8_t pair_status;
 uint8_t state;
 uint8_t screen_color;
 
@@ -60,6 +69,9 @@ void setup() {
     Serial.println(WiFi.status());
     ESP.restart(); // restart the ESP (proper way)
   }
+  state = IDLE;
+  primary_timer = millis();
+  timeout_timer = millis();
   in_welcome = false;
 }
 
@@ -78,24 +90,46 @@ void register_prompt() {
   tft.fillScreen(TFT_BLACK); //fill background
   tft.drawString("Registering: place", 0, 50, 1);
   tft.drawString("your item next to me!", 0, 60, 1);
-  
+
 }
 
 void loop() {
   switch (state) {
     case IDLE:
       if (!in_welcome) {
-        // welcome the user
-        welcome();
+        welcome(); // welcome the user
       }
       toggle = digitalRead(PIN_1);
       if (toggle == PRESSED) {
+        in_welcome = false;
         register_prompt();
         state = REGISTER;
       }
       break;
     case REGISTER:
+      if (toggle == PRESSED) { // press button, cancel and go back to IDLE
+        state = IDLE;
+      } else if (pair_status == SUCCESS) { // this needs to be defined
+        tft.fillScreen(TFT_BLACK);
+        tft.drawString("Success!", 0, 50, 1);
+        while (millis() - timeout_timer < TIMEOUT_PERIOD);
+        tft.fillScreen(TFT_BLACK);
+        tft.drawString("Speak item's name", 0, 50, 1);
+        state = RECORD_NAME;
+      } else if (pair_status == FAIL) { // this needs to be defined
+        timeout_timer = millis();
+        tft.fillScreen(TFT_BLACK);
+        tft.drawString("Failed. Module not found. :(", 0, 50, 1);
+        while (millis() - timeout_timer < TIMEOUT_PERIOD);
+        state = IDLE; // go back to IDLE
+      }
       break;
+    case RECORD_NAME:
+      // detect name and print it to ask user if it's correct
+      // if correct, add the name and appropriate info to database
+      // go back to IDLE
+      break;
+
   }
-  
+
 }
