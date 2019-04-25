@@ -3,7 +3,10 @@
 #include <TFT_eSPI.h>
 #include <WiFiClientSecure.h>
 
-TFT_eSPI tft = TFT_eSPI();
+#include <BLEDevice.h>
+#include <BLEScan.h>
+#include <BLEAdvertisedDevice.h>
+#include <string.h>
 
 #define IDLE 0
 #define REGISTER 1
@@ -16,6 +19,8 @@ TFT_eSPI tft = TFT_eSPI();
 #define NONE 0
 #define SUCCESS 1
 #define FAIL 2
+
+TFT_eSPI tft = TFT_eSPI();
 
 char network[] = "MIT GUEST";
 char password[] = "";
@@ -83,6 +88,133 @@ boolean in_welcome;
 char select_char[] = "-"; // selection indicator variable
 char uuid[400]; // stores uuid
 
+
+
+//BEGIN BUTTON
+
+
+class Button {
+  public:
+    uint32_t t_of_state_2;
+    uint32_t t_of_button_change;
+    uint32_t debounce_time;
+    uint32_t long_press_time;
+    uint8_t pin;
+    uint8_t flag;
+    bool button_pressed;
+    uint8_t state; // This is public for the sake of convenience
+    Button(int p) {
+      flag = 0;
+      state = 0;
+      pin = p;
+      t_of_state_2 = millis(); //init
+      t_of_button_change = millis(); //init
+      debounce_time = 10;
+      long_press_time = 1000;
+      button_pressed = 0;
+    }
+    void read() {
+      uint8_t button_state = digitalRead(pin);
+      button_pressed = !button_state;
+    }
+    int update1() {
+      read();
+      flag = 0;
+      if (state == 0) { // Unpressed, rest state
+        if (button_pressed) {
+          state = 1;
+          t_of_button_change = millis();
+        }
+      } else if (state == 1) { //Tentative pressed
+        if (!button_pressed) {
+          state = 0;
+          t_of_button_change = millis();
+        } else if (millis() - t_of_button_change >= debounce_time) {
+          state = 2;
+          t_of_state_2 = millis();
+        }
+      } else if (state == 2) { // Short press
+        if (!button_pressed) {
+          state = 4;
+          t_of_button_change = millis();
+        } else if (millis() - t_of_state_2 >= long_press_time) {
+          state = 3;
+        }
+      } else if (state == 3) { //Long press
+        if (!button_pressed) {
+          state = 4;
+          t_of_button_change = millis();
+        }
+      } else if (state == 4) { //Tentative unpressed
+        if (button_pressed && millis() - t_of_state_2 < long_press_time) {
+          state = 2; // Unpress was temporary, return to short press
+          t_of_button_change = millis();
+        } else if (button_pressed && millis() - t_of_state_2 >= long_press_time) {
+          state = 3; // Unpress was temporary, return to long press
+          t_of_button_change = millis();
+        } else if (millis() - t_of_button_change >= debounce_time) { // A full button push is complete
+          state = 0;
+          if (millis() - t_of_state_2 < long_press_time) { // It is a short press
+            flag = 1;
+          } else {  // It is a long press
+            flag = 2;
+          }
+        }
+      }
+      return flag;
+    }
+};
+
+
+//END BUTTON
+
+
+int refreshOrSelectPin = 16;
+int togglePin = 5;
+int lastButtonPress;
+int scrollPosition;
+int arrayPtr = 0;
+char manufactureDesc[15];
+int BLEconnected = 0;
+
+Button refreshOrSelectButton(refreshOrSelectPin);
+Button toggleButton(togglePin);
+BLEAdvertisedDevice* devices[3];
+
+BLEScan* pBLEScan;
+
+class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
+    void onResult(BLEAdvertisedDevice advertisedDevice) {
+      char deviceDesc[100];
+      char deviceName[100];
+      strcpy(deviceName, advertisedDevice.getName().c_str());
+      strcpy(deviceDesc, advertisedDevice.getManufacturerData().c_str());
+      if (strcmp(deviceName, manufactureDesc) == 0) {
+        if (arrayPtr == 0) {
+          devices[0] = new BLEAdvertisedDevice(advertisedDevice);
+          arrayPtr++;
+        } else {
+          devices [1] = new BLEAdvertisedDevice(advertisedDevice);
+        }
+      }
+    }
+};
+
+class MyClientCallback : public BLEClientCallbacks {
+  void onConnect(BLEClient* pclient) {
+    BLEconnected = 1;
+  }
+
+  void onDisconnect(BLEClient* pclient) {
+//    connected = false;
+    BLEconnected = 2;
+  }
+};
+
+
+
+
+
 void setup() {
   Serial.begin(115200);               // Set up serial port
   pinMode(PIN_1, INPUT_PULLUP);
@@ -120,6 +252,21 @@ void setup() {
   timer = millis();
   in_welcome = false;
   pair_status = SUCCESS;
+
+
+  //BLE
+
+  BLEDevice::init("");
+  pBLEScan = BLEDevice::getScan(); //create new scan
+  pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
+  pBLEScan->setActiveScan(true); //active scan uses more power, but get results faster
+  pBLEScan->setInterval(100);
+  pBLEScan->setWindow(99);  // less or equal setInterval value
+  lastButtonPress = millis();
+  scrollPosition = 0;
+  strcpy(manufactureDesc, "608aa");
+
+  
 }
 
 void welcome() {
@@ -143,7 +290,7 @@ void register_prompt() {
 void loop() {
   Serial.println(state);
   switch (state) {
-    case IDLE:
+    case IDLE: {
       if (!in_welcome) {
         welcome(); // welcome the user
       }
@@ -153,24 +300,62 @@ void loop() {
         register_prompt();
         state = REGISTER;
       }
+    }
       break;
-    case REGISTER:
-      if (pair_status == SUCCESS) { // this needs to be defined
+    case REGISTER: {
+      int refreshOrSelectRes = refreshOrSelectButton.update1();
+      int toggleRes = toggleButton.update1();
+    //  Serial.print(refreshOrSelectRes);
+    //  Serial.println(toggleRes);
+    
+      if (refreshOrSelectRes == 2) {//refresh
+        Serial.println("REFERESHING");
+        arrayPtr = 0;
+        BLEScanResults foundDevices = pBLEScan->start(5, false);
+        delay(5000);//wait for scan to terminate
+        pBLEScan->clearResults();   // delete results fromBLEScan buffer to release memory
+    
+      } else if (refreshOrSelectRes == 1) {//select the current
+        Serial.println("in the connecting block");
+        BLEAdvertisedDevice* myDevice = devices[scrollPosition];
+    
+        Serial.println(myDevice->getServiceUUID().toString().c_str());
+        strcpy(uuid, myDevice->getServiceUUID().toString().c_str());
+    
+        BLEClient*  pClient  = BLEDevice::createClient();
+    
+        pClient->setClientCallbacks(new MyClientCallback());
+        
+        Serial.println("ready to connect");
+        pClient->connect(myDevice);  // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
+        Serial.println(" - Connected to server");
+    
+    
+      } else if (toggleRes != 0 ) {
+        scrollPosition = (scrollPosition + 1) % 2;
+//        rerender();
+      }
+
+
+
+    
+      if (BLEconnected == 1) { // this needs to be defined
         tft.fillScreen(TFT_BLACK);
         tft.drawString("Success!", 0, 50, 1);
         while (millis() - timeout_timer < TIMEOUT_PERIOD);
         tft.fillScreen(TFT_BLACK);
         tft.drawString("Press button to record item's name", 0, 50, 1);
         state = RECORD_NAME;
-      } else if (pair_status == FAIL) { // this needs to be defined
+      } else if (BLEconnected == 2) { // this needs to be defined
         timeout_timer = millis();
         tft.fillScreen(TFT_BLACK);
         tft.drawString("Failed. Module not found. :(", 0, 50, 1);
         while (millis() - timeout_timer < TIMEOUT_PERIOD);
         state = IDLE; // go back to IDLE
       }
+    }
       break;
-    case RECORD_NAME:
+    case RECORD_NAME: {
       button_state = digitalRead(PIN_1);
       if (!button_state && button_state != old_button_state) {
         handle_record();
@@ -181,7 +366,9 @@ void loop() {
         tft.drawString("correct?", 0, 30, 1);
       }
       old_button_state = button_state;
+    }
       break;
+    
     case NAME_VERIFY:
       button_state = digitalRead(PIN_1);
       button_state2 = digitalRead(PIN_2);
