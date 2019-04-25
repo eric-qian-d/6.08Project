@@ -3,17 +3,24 @@
     Ported to Arduino ESP32 by Evandro Copercini
     updates by chegewara
 */
+#include <SPI.h>
+#include <WiFi.h> //Connect to WiFi Network
+#include <TFT_eSPI.h>
 
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEServer.h>
 
+int man_code = 0x02E5;
+
 // See the following for generating UUIDs:
 // https://www.uuidgenerator.net/
 
-#define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
-#define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+static BLEUUID SERVICE_UUID("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
+static BLEUUID CHARACTERISTIC_UUID("beb5483e-36e1-4688-b7f5-ea07361b26a8");
 
+BLEAdvertising *pAdvertising;
+BLEAdvertisementData advert;
 
 void setManData(String c, int c_size, BLEAdvertisementData &adv, int m_code) {
   
@@ -25,7 +32,6 @@ void setManData(String c, int c_size, BLEAdvertisementData &adv, int m_code) {
   s.concat(b2);
   s.concat(c);
 
-  
   adv.setManufacturerData(s.c_str());
 }
 
@@ -45,23 +51,25 @@ void setup() {
   pCharacteristic->setValue("Hello World says Neil");
   pService->start();
   // BLEAdvertising *pAdvertising = pServer->getAdvertising();  // this still is working for backward compatibility
-  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
+  pAdvertising = BLEDevice::getAdvertising();
   pAdvertising->addServiceUUID(SERVICE_UUID);
   pAdvertising->setScanResponse(true);
   pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue
   pAdvertising->setMinPreferred(0x12);
 
+  advert.setName("608aa");
+  advert.setCompleteServices(SERVICE_UUID);
+  pAdvertising->setAdvertisementData(advert);
+  BLEAdvertisementData scan_response;
+  setManData("608aa", strlen("608aa"), scan_response, man_code);
+  pAdvertising->setScanResponseData(scan_response);
   BLEDevice::startAdvertising();
+  
   Serial.println("Characteristic defined! Now you can read it in your phone!");
   
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-  BLEAdvertisementData scan_response; 
-  setManData("6.08 AAA", length("6.08 AAA"), scan_response, man_code);
-  pAdvertising->stop();
-  pAdvertising->setScanResponseData(scan_response);
-  pAdvertising->start();
   delay(2000);
 }
