@@ -189,6 +189,8 @@ void loop() {
     Serial.println("in the connecting block");
     BLEAdvertisedDevice* myDevice = devices[scrollPosition];
 
+    Serial.println(myDevice->getServiceUUID().toString().c_str());
+
     BLEClient*  pClient  = BLEDevice::createClient();
 
     pClient->setClientCallbacks(new MyClientCallback());
