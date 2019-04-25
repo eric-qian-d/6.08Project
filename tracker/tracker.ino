@@ -63,9 +63,11 @@ const char API_KEY[] = "AIzaSyD6ETx_Ammh1jgbfxG_wggm8eGa08yzQzQ"; //don't change
 /* Global variables*/
 uint8_t button_state; //used for containing button state and detecting edges
 int old_button_state; //used for detecting button edges
+uint8_t button_state2; //used for containing button state and detecting edges
+int old_button_state2; //used for detecting button edges
 uint32_t time_since_sample;      // used for microsecond timing
 
-char name_transcript[500];
+char name_transcript[100];
 
 char speech_data[ENC_LEN + 200] = {0}; //global used for collecting speech data
 const char*  SERVER = "speech.google.com";  // Server URL
@@ -181,7 +183,47 @@ void loop() {
       old_button_state = button_state;
       break;
     case NAME_VERIFY:
-      
+      button_state = digitalRead(PIN_1);
+      button_state2 = digitalRead(PIN_2);
+
+      // reject the name
+      if (!button_state && button_state != old_button_state) {
+        memset(name_transcript, 0, strlen(name_transcript));
+        old_button_state = button_state;
+        tft.fillScreen(TFT_BLACK);
+        tft.drawString("Press button to record item's name", 0, 50, 1);
+        state = RECORD_NAME;
+      }
+      // accept the name
+      if (!button_state2 && button_state2 != old_button_state2) {
+        old_button_state2 = button_state2;
+
+        // post request to server
+        char body[200]; //for body;
+        sprintf(body, "id=%s&name=%s", "23452rasdfasf" , name_transcript); //generate body, posting to User, 1 step
+        int body_len = strlen(body); //calculate body length (for header reporting)
+        sprintf(request_buffer, "POST http://608dev.net/sandbox/sc/lyy/new_test.py HTTP/1.1\r\n");
+        strcat(request_buffer, "Host: 608dev.net\r\n");
+        strcat(request_buffer, "Content-Type: application/x-www-form-urlencoded\r\n");
+        sprintf(request_buffer + strlen(request_buffer), "Content-Length: %d\r\n", body_len); //append string formatted to end of request buffer
+        strcat(request_buffer, "\r\n"); //new line from header to body
+        strcat(request_buffer, body); //body
+        strcat(request_buffer, "\r\n"); //header
+        Serial.println(request_buffer);
+        do_http_request("608dev.net", request_buffer, response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
+        //tft.println(response); //print the result
+
+        tft.fillScreen(TFT_BLACK);
+        tft.drawString(name_transcript, 0, 10, 1);
+        tft.drawString(" has been registered", 0, 20, 1);
+        memset(name_transcript, 0, strlen(name_transcript));
+        state = IDLE;
+      }
+      old_button_state2 = button_state2;
+      old_button_state = button_state;
+      break;
+
+
 
   }
 
@@ -270,7 +312,7 @@ void handle_record() {
       char transcript[100] = {0};
       strncat(transcript, starto, transcript_len);
       Serial.println(transcript);
-      name_transcript = transcript;
+      strcpy(name_transcript, transcript);
     }
     Serial.println("-----------");
     client.stop();
