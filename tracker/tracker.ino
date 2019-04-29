@@ -288,13 +288,13 @@ void register_prompt() {
 }
 
 void loop() {
-  Serial.println(state);
+  //Serial.println(state);
   switch (state) {
     case IDLE: {
       if (!in_welcome) {
         welcome(); // welcome the user
       }
-      toggle = digitalRead(PIN_1);
+      int toggle = refreshOrSelectButton.update1();
       if (toggle == PRESSED) {
         in_welcome = false;
         register_prompt();
@@ -329,6 +329,7 @@ void loop() {
         Serial.println("ready to connect");
         pClient->connect(myDevice);  // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
         Serial.println(" - Connected to server");
+//        pair
     
     
       } else if (toggleRes != 0 ) {
