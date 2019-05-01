@@ -8,13 +8,15 @@
 #include <BLEAdvertisedDevice.h>
 #include <string.h>
 
+#include "button.cpp"
+
 #define IDLE 0
 #define REGISTER 1
 #define RECORD_NAME 2
 #define NAME_VERIFY 3
 
-#define PRESSED 0
-#define UNPRESSED 1
+#define SHORTPRESS 1
+#define LONGPRESS 2
 
 #define NONE 0
 #define SUCCESS 1
@@ -44,7 +46,6 @@ uint32_t timeout_timer;
 const uint8_t TIMEOUT_PERIOD = 2500; //milliseconds
 
 uint8_t toggle;
-uint8_t pair_status;
 uint8_t state;
 uint8_t screen_color;
 
@@ -81,93 +82,9 @@ uint8_t old_val;
 
 WiFiClientSecure client; //global WiFiClient Secure object
 
-
-/* END OF MIC VARIABLES */
-
 boolean in_welcome;
 char select_char[] = "-"; // selection indicator variable
 char uuid[400]; // stores uuid
-
-
-
-//BEGIN BUTTON
-
-
-class Button {
-  public:
-    uint32_t t_of_state_2;
-    uint32_t t_of_button_change;
-    uint32_t debounce_time;
-    uint32_t long_press_time;
-    uint8_t pin;
-    uint8_t flag;
-    bool button_pressed;
-    uint8_t state; // This is public for the sake of convenience
-    Button(int p) {
-      flag = 0;
-      state = 0;
-      pin = p;
-      t_of_state_2 = millis(); //init
-      t_of_button_change = millis(); //init
-      debounce_time = 10;
-      long_press_time = 1000;
-      button_pressed = 0;
-    }
-    void read() {
-      uint8_t button_state = digitalRead(pin);
-      button_pressed = !button_state;
-    }
-    int update1() {
-      read();
-      flag = 0;
-      if (state == 0) { // Unpressed, rest state
-        if (button_pressed) {
-          state = 1;
-          t_of_button_change = millis();
-        }
-      } else if (state == 1) { //Tentative pressed
-        if (!button_pressed) {
-          state = 0;
-          t_of_button_change = millis();
-        } else if (millis() - t_of_button_change >= debounce_time) {
-          state = 2;
-          t_of_state_2 = millis();
-        }
-      } else if (state == 2) { // Short press
-        if (!button_pressed) {
-          state = 4;
-          t_of_button_change = millis();
-        } else if (millis() - t_of_state_2 >= long_press_time) {
-          state = 3;
-        }
-      } else if (state == 3) { //Long press
-        if (!button_pressed) {
-          state = 4;
-          t_of_button_change = millis();
-        }
-      } else if (state == 4) { //Tentative unpressed
-        if (button_pressed && millis() - t_of_state_2 < long_press_time) {
-          state = 2; // Unpress was temporary, return to short press
-          t_of_button_change = millis();
-        } else if (button_pressed && millis() - t_of_state_2 >= long_press_time) {
-          state = 3; // Unpress was temporary, return to long press
-          t_of_button_change = millis();
-        } else if (millis() - t_of_button_change >= debounce_time) { // A full button push is complete
-          state = 0;
-          if (millis() - t_of_state_2 < long_press_time) { // It is a short press
-            flag = 1;
-          } else {  // It is a long press
-            flag = 2;
-          }
-        }
-      }
-      return flag;
-    }
-};
-
-
-//END BUTTON
-
 
 int refreshOrSelectPin = 16;
 int togglePin = 5;
@@ -211,10 +128,6 @@ class MyClientCallback : public BLEClientCallbacks {
   }
 };
 
-
-
-
-
 void setup() {
   Serial.begin(115200);               // Set up serial port
   pinMode(PIN_1, INPUT_PULLUP);
@@ -251,8 +164,6 @@ void setup() {
   timeout_timer = millis();
   timer = millis();
   in_welcome = false;
-  pair_status = SUCCESS;
-
 
   //BLE
 
@@ -265,8 +176,6 @@ void setup() {
   lastButtonPress = millis();
   scrollPosition = 0;
   strcpy(manufactureDesc, "608aa");
-
-  
 }
 
 void welcome() {
@@ -282,7 +191,7 @@ void welcome() {
   // fetch weather data
   char IP_ADDRESS[30];
   sprintf(IP_ADDRESS, "%s", WiFi.localIP().toString());
-  fetch_weather_data(IP_ADDRESS); 
+  //fetch_weather_data(IP_ADDRESS); 
 }
 
 void register_prompt() {
@@ -293,14 +202,13 @@ void register_prompt() {
 }
 
 void loop() {
-  // Serial.println(state);
   switch (state) {
     case IDLE: {
       if (!in_welcome) {
         welcome(); // welcome the user
       }
-      toggle = digitalRead(PIN_1);
-      if (toggle == PRESSED) {
+      toggle = refreshOrSelectButton.update1();
+      if (toggle == SHORTPRESS) {
         in_welcome = false;
         register_prompt();
         state = REGISTER;
@@ -310,17 +218,15 @@ void loop() {
     case REGISTER: {
       int refreshOrSelectRes = refreshOrSelectButton.update1();
       int toggleRes = toggleButton.update1();
-    //  Serial.print(refreshOrSelectRes);
-    //  Serial.println(toggleRes);
-    
-      if (refreshOrSelectRes == 2) {//refresh
+
+      if (refreshOrSelectRes == LONGPRESS) {//refresh
         Serial.println("REFERESHING");
         arrayPtr = 0;
         BLEScanResults foundDevices = pBLEScan->start(5, false);
         delay(5000);//wait for scan to terminate
         pBLEScan->clearResults();   // delete results fromBLEScan buffer to release memory
     
-      } else if (refreshOrSelectRes == 1) {//select the current
+      } else if (refreshOrSelectRes == SHORTPRESS) {//select the current
         Serial.println("in the connecting block");
         BLEAdvertisedDevice* myDevice = devices[scrollPosition];
     
@@ -340,18 +246,15 @@ void loop() {
         scrollPosition = (scrollPosition + 1) % 2;
 //        rerender();
       }
-
-
-
     
-      if (BLEconnected == 1) { // this needs to be defined
+      if (BLEconnected == SUCCESS) { 
         tft.fillScreen(TFT_BLACK);
         tft.drawString("Success!", 0, 50, 1);
         while (millis() - timeout_timer < TIMEOUT_PERIOD);
         tft.fillScreen(TFT_BLACK);
         tft.drawString("Press button to record item's name", 0, 50, 1);
         state = RECORD_NAME;
-      } else if (BLEconnected == 2) { // this needs to be defined
+      } else if (BLEconnected == FAIL) { 
         timeout_timer = millis();
         tft.fillScreen(TFT_BLACK);
         tft.drawString("Failed. Module not found. :(", 0, 50, 1);
@@ -361,8 +264,8 @@ void loop() {
     }
       break;
     case RECORD_NAME: {
-      button_state = digitalRead(PIN_1);
-      if (!button_state && button_state != old_button_state) {
+      int refreshOrSelectRes = refreshOrSelectButton.update1();
+      if (refreshOrSelectRes == SHORTPRESS) {
         handle_record();
         state = NAME_VERIFY;
         tft.fillScreen(TFT_BLACK);
@@ -370,26 +273,22 @@ void loop() {
         tft.drawString(name_transcript, 0, 20, 1);
         tft.drawString("correct?", 0, 30, 1);
       }
-      old_button_state = button_state;
     }
       break;
     
     case NAME_VERIFY:
-      button_state = digitalRead(PIN_1);
-      button_state2 = digitalRead(PIN_2);
+      int refreshOrSelectRes = refreshOrSelectButton.update1();
+      int toggleRes = toggleButton.update1();
 
       // reject the name
-      if (!button_state && button_state != old_button_state) {
+      if (refreshOrSelectRes == SHORTPRESS) {
         memset(name_transcript, 0, strlen(name_transcript));
-        old_button_state = button_state;
         tft.fillScreen(TFT_BLACK);
         tft.drawString("Press button to record item's name", 0, 50, 1);
         state = RECORD_NAME;
       }
       // accept the name
-      if (!button_state2 && button_state2 != old_button_state2) {
-        old_button_state2 = button_state2;
-
+      if (toggleRes == SHORTPRESS) {
         // post request to server
         char body[200]; //for body;
         sprintf(body, "id=%s&name=%s", "23452rasdfasf" , name_transcript); //generate body, posting to User, 1 step
@@ -411,12 +310,7 @@ void loop() {
         memset(name_transcript, 0, strlen(name_transcript));
         state = IDLE;
       }
-      old_button_state2 = button_state2;
-      old_button_state = button_state;
       break;
-
-
-
   }
 
   while (millis() - timer < 10);
@@ -512,8 +406,6 @@ void handle_record() {
   }
 }
 
-
-
 //function used to record audio at sample rate for a fixed nmber of samples
 void record_audio() {
   int sample_num = 0;    // counter for samples
@@ -546,28 +438,4 @@ void record_audio() {
   Serial.println(millis() - start);
   sprintf(speech_data + strlen(speech_data), "%s", SUFFIX);
   Serial.println("out");
-}
-
-
-int8_t mulaw_encode(int16_t sample) {
-  const uint16_t MULAW_MAX = 0x1FFF;
-  const uint16_t MULAW_BIAS = 33;
-  uint16_t mask = 0x1000;
-  uint8_t sign = 0;
-  uint8_t position = 12;
-  uint8_t lsb = 0;
-  if (sample < 0)
-  {
-    sample = -sample;
-    sign = 0x80;
-  }
-  sample += MULAW_BIAS;
-  if (sample > MULAW_MAX)
-  {
-    sample = MULAW_MAX;
-  }
-  for (; ((sample & mask) != mask && position >= 5); mask >>= 1, position--)
-    ;
-  lsb = (sample >> (position - 4)) & 0x0f;
-  return (~(sign | ((position - 5) << 4) | lsb));
 }
