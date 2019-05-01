@@ -46,6 +46,7 @@ uint32_t timeout_timer;
 const uint8_t TIMEOUT_PERIOD = 2500; //milliseconds
 
 uint8_t toggle;
+uint8_t toggle_state;
 uint8_t state;
 uint8_t screen_color;
 
@@ -118,14 +119,14 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 };
 
 class MyClientCallback : public BLEClientCallbacks {
-  void onConnect(BLEClient* pclient) {
-    BLEconnected = 1;
-  }
+    void onConnect(BLEClient* pclient) {
+      BLEconnected = 1;
+    }
 
-  void onDisconnect(BLEClient* pclient) {
-//    connected = false;
-    BLEconnected = 2;
-  }
+    void onDisconnect(BLEClient* pclient) {
+      //    connected = false;
+      BLEconnected = 2;
+    }
 };
 
 void setup() {
@@ -151,15 +152,13 @@ void setup() {
     Serial.println("CONNECTED!");
     Serial.println(WiFi.localIP().toString() + " (" + WiFi.macAddress() + ") (" + WiFi.SSID() + ")");
     delay(500);
-    
+
   } else { //if we failed to connect just Try again.
     Serial.println("Failed to Connect :/  Going to restart");
     Serial.println(WiFi.status());
     ESP.restart(); // restart the ESP (proper way)
-    
-  }
 
-  
+  }
 
   analogSetAttenuation(ADC_6db); //set to 6dB attenuation for 3.3V full scale reading.
 
@@ -168,6 +167,7 @@ void setup() {
   timeout_timer = millis();
   timer = millis();
   in_welcome = false;
+  toggle_state = 0;
 
   //BLE
 
@@ -194,8 +194,8 @@ void welcome() {
   tft.drawString(select_char, 2, 10, 1);
 
   // fetch weather data
-  
-  fetch_weather_data(); 
+
+  fetch_weather_data();
 }
 
 void register_prompt() {
@@ -209,79 +209,81 @@ void loop() {
   //Serial.println(state);
   switch (state) {
     case IDLE: {
-      if (!in_welcome) {
-        welcome(); // welcome the user
+        if (!in_welcome) {
+          welcome(); // welcome the user
+        }
+        toggle = refreshOrSelectButton.update1();
+        if (toggle == SHORTPRESS) {
+          toggle_state += 1;
+        } else if (toggle == LONGPRESS) {
+          in_welcome = false;
+          register_prompt();
+          state = REGISTER;
+        }
       }
-      toggle = refreshOrSelectButton.update1();
-      if (toggle == SHORTPRESS) {
-        in_welcome = false;
-        register_prompt();
-        state = REGISTER;
-      }
-    }
       break;
     case REGISTER: {
-      int refreshOrSelectRes = refreshOrSelectButton.update1();
-      int toggleRes = toggleButton.update1();
+        int refreshOrSelectRes = refreshOrSelectButton.update1();
+        int toggleRes = toggleButton.update1();
 
-      if (refreshOrSelectRes == LONGPRESS) {//refresh
-        Serial.println("REFERESHING");
-        arrayPtr = 0;
-        BLEScanResults foundDevices = pBLEScan->start(5, false);
-        delay(5000);//wait for scan to terminate
-        pBLEScan->clearResults();   // delete results fromBLEScan buffer to release memory
-    
-      } else if (refreshOrSelectRes == SHORTPRESS) {//select the current
-        Serial.println("in the connecting block");
-        BLEAdvertisedDevice* myDevice = devices[scrollPosition];
-    
-        Serial.println(myDevice->getServiceUUID().toString().c_str());
-        strcpy(uuid, myDevice->getServiceUUID().toString().c_str());
-    
-        BLEClient*  pClient  = BLEDevice::createClient();
-    
-        pClient->setClientCallbacks(new MyClientCallback());
-        
-        Serial.println("ready to connect");
-        pClient->connect(myDevice);  // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
-        Serial.println(" - Connected to server");
-//        pair
-    
-    
-      } else if (toggleRes != 0 ) {
-        scrollPosition = (scrollPosition + 1) % 2;
-//        rerender();
+        if (refreshOrSelectRes == LONGPRESS) {//refresh
+          Serial.println("REFERESHING");
+          arrayPtr = 0;
+          BLEScanResults foundDevices = pBLEScan->start(5, false);
+          delay(5000);//wait for scan to terminate
+          pBLEScan->clearResults();   // delete results fromBLEScan buffer to release memory
+
+        } else if (refreshOrSelectRes == SHORTPRESS) {//select the current
+          Serial.println("in the connecting block");
+          BLEAdvertisedDevice* myDevice = devices[scrollPosition];
+
+          Serial.println(myDevice->getServiceUUID().toString().c_str());
+          strcpy(uuid, myDevice->getServiceUUID().toString().c_str());
+
+          BLEClient*  pClient  = BLEDevice::createClient();
+
+          pClient->setClientCallbacks(new MyClientCallback());
+
+          Serial.println("ready to connect");
+          pClient->connect(myDevice);  // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
+          Serial.println(" - Connected to server");
+          //        pair
+
+
+        } else if (toggleRes != 0 ) {
+          scrollPosition = (scrollPosition + 1) % 2;
+          //        rerender();
+        }
+
+        if (BLEconnected == SUCCESS) {
+          tft.fillScreen(TFT_BLACK);
+          tft.drawString("Success!", 0, 50, 1);
+          while (millis() - timeout_timer < TIMEOUT_PERIOD);
+          tft.fillScreen(TFT_BLACK);
+          tft.drawString("Press button to record item's name", 0, 50, 1);
+          state = RECORD_NAME;
+        } else if (BLEconnected == FAIL) {
+          timeout_timer = millis();
+          tft.fillScreen(TFT_BLACK);
+          tft.drawString("Failed. Module not found. :(", 0, 50, 1);
+          while (millis() - timeout_timer < TIMEOUT_PERIOD);
+          state = IDLE; // go back to IDLE
+        }
       }
-    
-      if (BLEconnected == SUCCESS) { 
-        tft.fillScreen(TFT_BLACK);
-        tft.drawString("Success!", 0, 50, 1);
-        while (millis() - timeout_timer < TIMEOUT_PERIOD);
-        tft.fillScreen(TFT_BLACK);
-        tft.drawString("Press button to record item's name", 0, 50, 1);
-        state = RECORD_NAME;
-      } else if (BLEconnected == FAIL) { 
-        timeout_timer = millis();
-        tft.fillScreen(TFT_BLACK);
-        tft.drawString("Failed. Module not found. :(", 0, 50, 1);
-        while (millis() - timeout_timer < TIMEOUT_PERIOD);
-        state = IDLE; // go back to IDLE
-      }
-    }
       break;
     case RECORD_NAME: {
-      int refreshOrSelectRes = refreshOrSelectButton.update1();
-      if (refreshOrSelectRes == SHORTPRESS) {
-        handle_record();
-        state = NAME_VERIFY;
-        tft.fillScreen(TFT_BLACK);
-        tft.drawString("Is", 0, 10, 1);
-        tft.drawString(name_transcript, 0, 20, 1);
-        tft.drawString("correct?", 0, 30, 1);
+        int refreshOrSelectRes = refreshOrSelectButton.update1();
+        if (refreshOrSelectRes == SHORTPRESS) {
+          handle_record();
+          state = NAME_VERIFY;
+          tft.fillScreen(TFT_BLACK);
+          tft.drawString("Is", 0, 10, 1);
+          tft.drawString(name_transcript, 0, 20, 1);
+          tft.drawString("correct?", 0, 30, 1);
+        }
       }
-    }
       break;
-    
+
     case NAME_VERIFY:
       int refreshOrSelectRes = refreshOrSelectButton.update1();
       int toggleRes = toggleButton.update1();
