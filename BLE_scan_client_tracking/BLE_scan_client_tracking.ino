@@ -111,7 +111,6 @@ char manufactureDesc[15];
 bool paired = false;
 bool connected = false;
 char uuid[400];
-char name[30];
 
 Button refreshOrSelectButton(refreshOrSelectPin);
 Button toggleButton(togglePin);
@@ -226,7 +225,7 @@ void loop() {
     paired = true;
 
         // Obtain a reference to the service we are after in the remote BLE server.
-        BLERemoteService* pRemoteService = pClient->getService(PAIR_SERVICE_UUID);
+        BLERemoteService* pRemoteService = pClient->getService(TRACK_SERVICE_UUID);
         if (pRemoteService == nullptr) {
           Serial.print("Failed to find our service UUID: ");
           Serial.println(serviceUUID.toString().c_str());
@@ -236,7 +235,7 @@ void loop() {
     
     
         // Obtain a reference to the characteristic in the service of the remote BLE server.
-        BLERemoteCharacteristic* pRemoteCharacteristic = pRemoteService->getCharacteristic(PAIR_CHARACTERISTIC_UUID);
+        BLERemoteCharacteristic* pRemoteCharacteristic = pRemoteService->getCharacteristic(TRACK_CHARACTERISTIC_UUID);
         if (pRemoteCharacteristic == nullptr) {
           Serial.print("Failed to find our characteristic UUID: ");
           Serial.println(charUUID.toString().c_str());
@@ -250,19 +249,6 @@ void loop() {
           Serial.print("Set changed");
         }
 
-        int yes = refreshOrSelectButton.update1();
-        int no = toggleButton.update1();
-
-        while(yes == 0 && no == 0) {
-          yes = refreshOrSelectButton.update1();
-          no = toggleButton.update1();
-        }
-
-        if (yes != 0) {
-          pRemoteCharacteristic->writeValue("false", false);
-          strcpy(name, myDevice->getName().c_str());
-        }
-        rerender();
 
   } else if (toggleRes != 0 ) {
     scrollPosition = (scrollPosition + 1) % (arrayPtr);
