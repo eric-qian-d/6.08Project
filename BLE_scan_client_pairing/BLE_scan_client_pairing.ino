@@ -96,7 +96,8 @@ class Button {
 
 
 
-
+static BLEUUID SERVICE_UUID("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
+static BLEUUID CHARACTERISTIC_UUID("beb5483e-36e1-4688-b7f5-ea07361b26a8");
 
 
 
@@ -107,6 +108,7 @@ int scrollPosition;
 int arrayPtr = 0;
 char manufactureDesc[15];
 bool paired = false;
+bool connected = false;
 char uuid[400];
 
 Button refreshOrSelectButton(refreshOrSelectPin);
@@ -121,6 +123,7 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
       char deviceDesc[100];
       char deviceName[100];
       strcpy(deviceName, advertisedDevice.getName().c_str());
+      //TODO: NO LONGER SETTING MAN DATA - NEED TO FIGURE OUT HOW TO IDENTIFY OUR DEVICES
       strcpy(deviceDesc, advertisedDevice.getManufacturerData().c_str());
       Serial.println(deviceDesc);
       Serial.println(deviceName);
@@ -148,11 +151,12 @@ void rerender() {
 
 class MyClientCallback : public BLEClientCallbacks {
   void onConnect(BLEClient* pclient) {
+    connected = true;
     Serial.println("onConnect");
   }
 
   void onDisconnect(BLEClient* pclient) {
-//    connected = false;
+    connected = false;
     Serial.println("onDisconnect");
   }
 };
@@ -203,31 +207,30 @@ void loop() {
     strcpy(uuid, myDevice->getServiceUUID().toString().c_str());
     paired = true;
 
-    //    // Obtain a reference to the service we are after in the remote BLE server.
-    //    BLERemoteService* pRemoteService = pClient->getService(serviceUUID);
-    //    if (pRemoteService == nullptr) {
-    //      Serial.print("Failed to find our service UUID: ");
-    //      Serial.println(serviceUUID.toString().c_str());
-    //      pClient->disconnect();
-    //    }
-    //    Serial.println(" - Found our service");
-    //
-    //
-    //    // Obtain a reference to the characteristic in the service of the remote BLE server.
-    //    pRemoteCharacteristic = pRemoteService->getCharacteristic(charUUID);
-    //    if (pRemoteCharacteristic == nullptr) {
-    //      Serial.print("Failed to find our characteristic UUID: ");
-    //      Serial.println(charUUID.toString().c_str());
-    //      pClient->disconnect();
-    //    }
-    //    Serial.println(" - Found our characteristic");
-    //
-    //    // Read the value of the characteristic.
-    //    if(pRemoteCharacteristic->canRead()) {
-    //      std::string value = pRemoteCharacteristic->readValue();
-    //      Serial.print("The characteristic value was: ");
-    //      Serial.println(value.c_str());
-    //    }
+        // Obtain a reference to the service we are after in the remote BLE server.
+        BLERemoteService* pRemoteService = pClient->getService(serviceUUID);
+        if (pRemoteService == nullptr) {
+          Serial.print("Failed to find our service UUID: ");
+          Serial.println(serviceUUID.toString().c_str());
+          pClient->disconnect();
+        }
+        Serial.println(" - Found our service");
+    
+    
+        // Obtain a reference to the characteristic in the service of the remote BLE server.
+        pRemoteCharacteristic = pRemoteService->getCharacteristic(charUUID);
+        if (pRemoteCharacteristic == nullptr) {
+          Serial.print("Failed to find our characteristic UUID: ");
+          Serial.println(charUUID.toString().c_str());
+          pClient->disconnect();
+        }
+        Serial.println(" - Found our characteristic");
+    
+        // Read the value of the characteristic.
+        if(pRemoteCharacteristic->canWrite()) {
+          std::string value = pRemoteCharacteristic->writeValue("true", false);
+          Serial.print("Set changed");
+        }
 
 
   } else if (toggleRes != 0 ) {
@@ -236,7 +239,9 @@ void loop() {
   }
 
   if(paired) {
-    
+    if(!connected) {
+      Serial.println("SOMETHING IS WRONG");
+    }
   }
 
 
