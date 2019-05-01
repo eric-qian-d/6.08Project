@@ -278,6 +278,11 @@ void welcome() {
   tft.drawString("View registered", 10, 30, 1);
   tft.drawString("items", 10, 40, 1);
   tft.drawString(select_char, 2, 10, 1);
+
+  // fetch weather data
+  char IP_ADDRESS[30];
+  sprintf(IP_ADDRESS, "%s", WiFi.localIP().toString());
+  fetch_weather_data(IP_ADDRESS); 
 }
 
 void register_prompt() {
@@ -288,7 +293,7 @@ void register_prompt() {
 }
 
 void loop() {
-  Serial.println(state);
+  // Serial.println(state);
   switch (state) {
     case IDLE: {
       if (!in_welcome) {
