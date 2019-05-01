@@ -238,11 +238,15 @@ void setup() {
     Serial.println("CONNECTED!");
     Serial.println(WiFi.localIP().toString() + " (" + WiFi.macAddress() + ") (" + WiFi.SSID() + ")");
     delay(500);
+    
   } else { //if we failed to connect just Try again.
     Serial.println("Failed to Connect :/  Going to restart");
     Serial.println(WiFi.status());
     ESP.restart(); // restart the ESP (proper way)
+    
   }
+
+  
 
   analogSetAttenuation(ADC_6db); //set to 6dB attenuation for 3.3V full scale reading.
 
@@ -260,11 +264,28 @@ void setup() {
   pBLEScan = BLEDevice::getScan(); //create new scan
   pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
   pBLEScan->setActiveScan(true); //active scan uses more power, but get results faster
-  pBLEScan->setInterval(100);
-  pBLEScan->setWindow(99);  // less or equal setInterval value
+  pBLEScan->setInterval(0x80);
+  pBLEScan->setWindow(0x10);  // less or equal setInterval value
   lastButtonPress = millis();
   scrollPosition = 0;
   strcpy(manufactureDesc, "608aa");
+
+//  ble.end();
+
+
+  Serial.print("\nStarting connection to server...");
+  delay(300);
+  bool conn = false;
+  for (int i = 0; i < 10; i++) {
+    int val = (int)client.connect(SERVER, 443);
+    Serial.print(i); Serial.print(": "); Serial.println(val);
+    if (val != 0) {
+      conn = true;
+      break;
+    }
+    Serial.print(".");
+    delay(1000);
+  }
 
   
 }

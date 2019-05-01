@@ -106,6 +106,8 @@ int lastButtonPress;
 int scrollPosition;
 int arrayPtr = 0;
 char manufactureDesc[15];
+bool paired = false;
+char uuid[400];
 
 Button refreshOrSelectButton(refreshOrSelectPin);
 Button toggleButton(togglePin);
@@ -198,6 +200,8 @@ void loop() {
     Serial.println("ready to connect");
     pClient->connect(myDevice);  // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
     Serial.println(" - Connected to server");
+    strcpy(uuid, myDevice->getServiceUUID().toString().c_str());
+    paired = true;
 
     //    // Obtain a reference to the service we are after in the remote BLE server.
     //    BLERemoteService* pRemoteService = pClient->getService(serviceUUID);
@@ -229,6 +233,10 @@ void loop() {
   } else if (toggleRes != 0 ) {
     scrollPosition = (scrollPosition + 1) % 2;
     rerender();
+  }
+
+  if(paired) {
+    
   }
 
 
