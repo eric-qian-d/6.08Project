@@ -16,36 +16,55 @@ int man_code = 0x02E5;
 // See the following for generating UUIDs:
 // https://www.uuidgenerator.net/
 
-static BLEUUID SERVICE_UUID("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
-static BLEUUID CHARACTERISTIC_UUID("beb5483e-36e1-4688-b7f5-ea07361b26a8");
+static BLEUUID TRACK_SERVICE_UUID("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
+static BLEUUID TRACK_CHARACTERISTIC_UUID("beb5483e-36e1-4688-b7f5-ea07361b26a8");
+
+static BLEUUID PAIR_SERVICE_UUID("3fafc201-1fb5-459e-8fcc-c5c9c331914c");
+static BLEUUID PAIR_CHARACTERISTIC_UUID("ceb5483e-36e1-4688-b7f5-ea07361b26a3");
 
 BLEAdvertising *pAdvertising;
 BLEAdvertisementData advert;
 
 int ledPin = 19;
 boolean tracked = false;
+boolean paired = false;
 boolean connected = false;
 
 
 class WriteCB: public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic *pCharacteristic) {
-      std::string value = pCharacteristic->getValue();
-      if (value == "false") {
-        tracked = false;
+
+      if (pCharacteristic->getUUID() == TRACK_CHARACTERISTIC_UUID) {
+        std::string value = pCharacteristic->getValue();
+        if (value == "false") {
+          tracked = false;
+        }
+        if (value == "true") {
+          tracked = true;
+        }
+        
+        if (value.length() > 0) {
+          Serial.println("*********");
+          Serial.print("New value: ");
+          for (int i = 0; i < value.length(); i++)
+            Serial.print(value[i]);
+  
+          Serial.println();
+          Serial.println("*********");
+        }
       }
-      if (value == "true") {
-        tracked = true;
+
+      if (pCharacteristic->getUUID() == PAIR_CHARACTERISTIC_UUID) {
+        std::string value = pCharacteristic->getValue();
+        if (value == "false") {
+          paired = false;
+        }
+        if (value == "true") {
+          paired = true;
+        }
       }
       
-      if (value.length() > 0) {
-        Serial.println("*********");
-        Serial.print("New value: ");
-        for (int i = 0; i < value.length(); i++)
-          Serial.print(value[i]);
-
-        Serial.println();
-        Serial.println("*********");
-      }
+      
     }
 };
 
@@ -79,9 +98,9 @@ void setup() {
 
   BLEDevice::init("MYESP32");
   BLEServer *pServer = BLEDevice::createServer();
-  BLEService *pService = pServer->createService(SERVICE_UUID);
+  BLEService *pService = pServer->createService(TRACK_SERVICE_UUID);
   BLECharacteristic *pCharacteristic = pService->createCharacteristic(
-                                         CHARACTERISTIC_UUID,
+                                         TRACK_CHARACTERISTIC_UUID,
                                          BLECharacteristic::PROPERTY_READ |
                                          BLECharacteristic::PROPERTY_WRITE
                                        );
@@ -94,7 +113,7 @@ void setup() {
   pService->start();
   
   pAdvertising = pServer->getAdvertising();
-  pAdvertising->addServiceUUID(SERVICE_UUID);
+  pAdvertising->addServiceUUID(TRACK_SERVICE_UUID);
   pAdvertising->setScanResponse(true);
   pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue
   pAdvertising->setMinPreferred(0x12);
@@ -116,13 +135,17 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-  if(tracked && !connected) {
+  if(paired) {
+    Serial.println("being paired");
+    digitalWrite(ledPin, HIGH);
+  } else if(tracked && !connected) {
     Serial.println("we have an issue");
     //code for tracking 
     digitalWrite(ledPin, HIGH);
   } else {
     digitalWrite(ledPin, LOW);
   }
+  Serial.print(paired);
   Serial.print(tracked);
   Serial.println(connected);
   delay(1000);
