@@ -16,6 +16,8 @@
 #define NAME_VERIFY 3
 #define VIEW_REGISTERED 4
 #define SELECTION_MENU 7
+#define RECORD_DESCRIPTION 5
+#define DESCRIPTION_VERIFY 6
 
 #define SHORTPRESS 1
 #define LONGPRESS 2
@@ -26,7 +28,11 @@
 
 TFT_eSPI tft = TFT_eSPI();
 
+<<<<<<< HEAD
 char network[] = "MIT GUEST";
+=======
+char network[] = "MIT";
+>>>>>>> a381c79270eee749887fafb08c257bf7ae990a46
 char password[] = "";
 
 const char USER[] = "jenning";
@@ -78,7 +84,9 @@ uint8_t button_state2; //used for containing button state and detecting edges
 int old_button_state2; //used for detecting button edges
 uint32_t time_since_sample;      // used for microsecond timing
 
+char temp_transcript[1000];
 char name_transcript[100];
+char description_transcript[1000];
 
 char speech_data[ENC_LEN + 200] = {0}; //global used for collecting speech data
 const char*  SERVER = "speech.google.com";  // Server URL
@@ -175,15 +183,15 @@ void setup() {
 
   //BLE
 
-  BLEDevice::init("");
-  pBLEScan = BLEDevice::getScan(); //create new scan
-  pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
-  pBLEScan->setActiveScan(true); //active scan uses more power, but get results faster
-  pBLEScan->setInterval(0x80);
-  pBLEScan->setWindow(0x10);  // less or equal setInterval value
-  lastButtonPress = millis();
-  scrollPosition = 0;
-  strcpy(manufactureDesc, "608aa");
+//  BLEDevice::init("");
+//  pBLEScan = BLEDevice::getScan(); //create new scan
+//  pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
+//  pBLEScan->setActiveScan(true); //active scan uses more power, but get results faster
+//  pBLEScan->setInterval(0x80);
+//  pBLEScan->setWindow(0x10);  // less or equal setInterval value
+//  lastButtonPress = millis();
+//  scrollPosition = 0;
+//  strcpy(manufactureDesc, "608aa");
 
 }
 
@@ -237,6 +245,8 @@ void show_selection_menu() {
 }
 
 void loop() {
+  button_state = digitalRead(PIN_1);
+  button_state2 = digitalRead(PIN_2);
   Serial.println(state);
   switch (state) {
     case IDLE: {
@@ -252,11 +262,11 @@ void loop() {
         } else if (toggle == LONGPRESS) {
           in_welcome = false;
           if (toggle_state == 0) {
-            register_prompt();
-            state = REGISTER;
-          } else if (toggle_state == 1) {
-            show_selection_menu();
-            state = SELECTION_MENU;
+//            register_prompt();
+            tft.fillScreen(TFT_BLACK);
+            tft.println("Press button to record name");
+            state = RECORD_NAME;
+//            state = REGISTER; UNCOMMENT ME
           } else if (toggle_state == 2) {
             view_registered();
             state = VIEW_REGISTERED;
@@ -265,9 +275,11 @@ void loop() {
       }
       break;
     case VIEW_REGISTERED:
-      toggle = refreshOrSelectButton.update1();
-      if (toggle == SHORTPRESS) {
-        state = IDLE;
+      {
+        toggle = refreshOrSelectButton.update1();
+        if (toggle == SHORTPRESS) {
+          state = IDLE;
+        }
       }
       break;
     case REGISTER: {
@@ -321,54 +333,106 @@ void loop() {
       break;
     case RECORD_NAME: {
         int refreshOrSelectRes = refreshOrSelectButton.update1();
-        if (refreshOrSelectRes == SHORTPRESS) {
+        if (!button_state && button_state != old_button_state) {
           handle_record();
           state = NAME_VERIFY;
           tft.fillScreen(TFT_BLACK);
           tft.drawString("Is", 0, 10, 1);
-          tft.drawString(name_transcript, 0, 20, 1);
+          tft.drawString(temp_transcript, 0, 20, 1);
           tft.drawString("correct?", 0, 30, 1);
         }
       }
       break;
 
     case NAME_VERIFY:
-      int refreshOrSelectRes = refreshOrSelectButton.update1();
-      int toggleRes = toggleButton.update1();
+      {
+        int refreshOrSelectRes = refreshOrSelectButton.update1();
+        int toggleRes = toggleButton.update1();
+  
+        // reject the name
+        if (refreshOrSelectRes == SHORTPRESS) {
+          memset(name_transcript, 0, strlen(name_transcript));
+          tft.fillScreen(TFT_BLACK);
+          tft.drawString("Press button to record item's name", 0, 50, 1);
+          state = RECORD_NAME;
+        }
+        // accept the name
+        if (toggleRes == SHORTPRESS) {
+            tft.fillScreen(TFT_BLACK);
+            tft.drawString("Press button to record description",0,50,1);
 
-      // reject the name
-      if (refreshOrSelectRes == SHORTPRESS) {
-        memset(name_transcript, 0, strlen(name_transcript));
-        tft.fillScreen(TFT_BLACK);
-        tft.drawString("Press button to record item's name", 0, 50, 1);
-        state = RECORD_NAME;
+            memset(name_transcript, 0, strlen(name_transcript));
+            strcpy(name_transcript, temp_transcript);
+            memset(temp_transcript, 0, strlen(temp_transcript));
+            state = RECORD_DESCRIPTION;
+        }
       }
-      // accept the name
-      if (toggleRes == SHORTPRESS) {
-        // post request to server
-        char body[200]; //for body;
-        sprintf(body, "id=%s&name=%s", "23452rasdfasf" , name_transcript); //generate body, posting to User, 1 step
-        int body_len = strlen(body); //calculate body length (for header reporting)
-        sprintf(request_buffer, "POST http://608dev.net/sandbox/sc/lyy/new_test.py HTTP/1.1\r\n");
-        strcat(request_buffer, "Host: 608dev.net\r\n");
-        strcat(request_buffer, "Content-Type: application/x-www-form-urlencoded\r\n");
-        sprintf(request_buffer + strlen(request_buffer), "Content-Length: %d\r\n", body_len); //append string formatted to end of request buffer
-        strcat(request_buffer, "\r\n"); //new line from header to body
-        strcat(request_buffer, body); //body
-        strcat(request_buffer, "\r\n"); //header
-        Serial.println(request_buffer);
-        do_http_request("608dev.net", request_buffer, response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
-        //tft.println(response); //print the result
+      break;
 
-        tft.fillScreen(TFT_BLACK);
-        tft.drawString(name_transcript, 0, 10, 1);
-        tft.drawString(" has been registered", 0, 20, 1);
-        memset(name_transcript, 0, strlen(name_transcript));
-        state = IDLE;
+    case RECORD_DESCRIPTION:
+      {
+        int refreshOrSelectRes = refreshOrSelectButton.update1();
+        int toggleRes = toggleButton.update1();
+  
+        if (!button_state && button_state != old_button_state) {
+          handle_record();
+          tft.fillScreen(TFT_BLACK);
+          tft.drawString("Is", 0, 10, 1);
+          tft.drawString(temp_transcript, 0, 20, 1);
+          tft.drawString("correct?", 0, 30, 1);
+        }
+  
+        // no description
+        if (toggleRes == SHORTPRESS) {
+          strcpy(description_transcript, temp_transcript);
+          state = DESCRIPTION_VERIFY;
+        }
+      }
+      break;
+
+    case DESCRIPTION_VERIFY:
+      {
+        int refreshOrSelectRes = refreshOrSelectButton.update1();
+        int toggleRes = toggleButton.update1();
+  
+        // reject the description
+        if (refreshOrSelectRes == SHORTPRESS) {
+          memset(temp_transcript, 0, strlen(temp_transcript));
+          tft.fillScreen(TFT_BLACK);
+          tft.drawString("Press button to record description", 0, 50, 1);
+          state = RECORD_DESCRIPTION;
+        }
+        // accept the description
+        if (toggleRes == SHORTPRESS) {
+          strcpy(description_transcript, temp_transcript);
+          // post request to server
+          char body[200]; //for body;
+          sprintf(body, "id=%s&name=%s&description=%s", "23452rasdfasfaaaaaaaa" , name_transcript, description_transcript); //generate body, posting to User, 1 step
+          int body_len = strlen(body); //calculate body length (for header reporting)
+          sprintf(request_buffer, "POST http://608dev.net/sandbox/sc/lyy/new_test.py HTTP/1.1\r\n");
+          strcat(request_buffer, "Host: 608dev.net\r\n");
+          strcat(request_buffer, "Content-Type: application/x-www-form-urlencoded\r\n");
+          sprintf(request_buffer + strlen(request_buffer), "Content-Length: %d\r\n", body_len); //append string formatted to end of request buffer
+          strcat(request_buffer, "\r\n"); //new line from header to body
+          strcat(request_buffer, body); //body
+          strcat(request_buffer, "\r\n"); //header
+          Serial.println(request_buffer);
+          do_http_request("608dev.net", request_buffer, response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
+          //tft.println(response); //print the result
+  
+          tft.fillScreen(TFT_BLACK);
+          tft.drawString(name_transcript, 0, 10, 1);
+          tft.drawString(" has been registered", 0, 20, 1);
+          memset(name_transcript, 0, strlen(name_transcript));
+          memset(description_transcript, 0, strlen(description_transcript));
+          state = IDLE;
+        }
       }
       break;
   }
 
   while (millis() - timer < 10);
   timer = millis();
+  old_button_state = button_state;
+  old_button_state2 = button_state2;
 }

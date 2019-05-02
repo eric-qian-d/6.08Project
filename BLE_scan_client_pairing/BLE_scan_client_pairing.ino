@@ -127,9 +127,6 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
       strcpy(deviceName, advertisedDevice.getName().c_str());
       //TODO: NO LONGER SETTING MAN DATA - NEED TO FIGURE OUT HOW TO IDENTIFY OUR DEVICES
       strcpy(deviceDesc, advertisedDevice.getManufacturerData().c_str());
-      Serial.println(strncmp(manufactureDesc, deviceName, 6) == 0);
-      Serial.println(7>= strlen(deviceName));
-      Serial.println(strlen(deviceName));
       Serial.println(deviceName);
       if ((7<= strlen(deviceName)) && (strncmp(manufactureDesc, deviceName, 7) == 0)) {
         Serial.println("GREAAT SUCESS");
@@ -263,6 +260,8 @@ void loop() {
         if (yes != 0) {
           pRemoteCharacteristic->writeValue("false", false);
           strcpy(name, myDevice->getName().c_str());
+          Serial.println("SUCCESSFULLY PAIRED!");
+          pClient -> disconnect();
         }
         rerender();
 
