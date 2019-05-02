@@ -24,8 +24,8 @@
 
 TFT_eSPI tft = TFT_eSPI();
 
-char network[] = "MIT GUEST";
-char password[] = "";
+char network[] = "6s08";
+char password[] = "iesc6s08";
 
 const char USER[] = "jenning";
 
@@ -102,16 +102,24 @@ BLEScan* pBLEScan;
 
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
     void onResult(BLEAdvertisedDevice advertisedDevice) {
+      Serial.println(advertisedDevice.toString().c_str());
       char deviceDesc[100];
       char deviceName[100];
       strcpy(deviceName, advertisedDevice.getName().c_str());
+      //TODO: NO LONGER SETTING MAN DATA - NEED TO FIGURE OUT HOW TO IDENTIFY OUR DEVICES
       strcpy(deviceDesc, advertisedDevice.getManufacturerData().c_str());
+      Serial.println(deviceDesc);
+      Serial.println(deviceName);
       if (strcmp(deviceName, manufactureDesc) == 0) {
-        if (arrayPtr == 0) {
-          devices[0] = new BLEAdvertisedDevice(advertisedDevice);
+        Serial.println("GREAAT SUCESS");
+//        BLEClient*  pClient  = BLEDevice::createClient();
+//        pClient->setClientCallbacks(new MyClientCallback());
+//        Serial.println("ready to connect");
+//        pClient->connect(&advertisedDevice);  // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
+//        Serial.println(" - Connected to server");
+        if (arrayPtr < 4) {
+          devices[arrayPtr] = new BLEAdvertisedDevice(advertisedDevice);
           arrayPtr++;
-        } else {
-          devices [1] = new BLEAdvertisedDevice(advertisedDevice);
         }
       }
     }
@@ -179,7 +187,7 @@ void setup() {
   pBLEScan->setWindow(0x10);  // less or equal setInterval value
   lastButtonPress = millis();
   scrollPosition = 0;
-  strcpy(manufactureDesc, "608aa");
+  strcpy(manufactureDesc, "MYESP32");
 
 }
 

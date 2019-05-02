@@ -31,10 +31,10 @@ boolean paired = false;
 boolean connected = false;
 
 
-class WriteCB: public BLECharacteristicCallbacks {
+class TrackWriteCB: public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic *pCharacteristic) {
 
-      if (pCharacteristic->getUUID() == TRACK_CHARACTERISTIC_UUID) {
+      
         std::string value = pCharacteristic->getValue();
         if (value == "false") {
           tracked = false;
@@ -52,9 +52,11 @@ class WriteCB: public BLECharacteristicCallbacks {
           Serial.println();
           Serial.println("*********");
         }
-      }
+    }
+};
 
-      if (pCharacteristic->getUUID() == PAIR_CHARACTERISTIC_UUID) {
+class PairWriteCB: public BLECharacteristicCallbacks {
+  void onWrite(BLECharacteristic *pCharacteristic) {
         std::string value = pCharacteristic->getValue();
         if (value == "false") {
           paired = false;
@@ -62,10 +64,8 @@ class WriteCB: public BLECharacteristicCallbacks {
         if (value == "true") {
           paired = true;
         }
-      }
-      
-      
-    }
+  }
+
 };
 
 class ConnectCB: public BLEServerCallbacks{
@@ -98,22 +98,34 @@ void setup() {
 
   BLEDevice::init("MYESP32");
   BLEServer *pServer = BLEDevice::createServer();
-  BLEService *pService = pServer->createService(TRACK_SERVICE_UUID);
-  BLECharacteristic *pCharacteristic = pService->createCharacteristic(
+  BLEService *pTrackService = pServer->createService(TRACK_SERVICE_UUID);
+  BLECharacteristic *pTrackCharacteristic = pTrackService->createCharacteristic(
                                          TRACK_CHARACTERISTIC_UUID,
                                          BLECharacteristic::PROPERTY_READ |
                                          BLECharacteristic::PROPERTY_WRITE
                                        );
 
-  pCharacteristic->setValue("Hello World says Neil");
-  pCharacteristic->setCallbacks(new WriteCB());
+  BLEService *pPairService = pServer->createService(PAIR_SERVICE_UUID);
+  BLECharacteristic *pPairCharacteristic = pPairService->createCharacteristic(
+                                         PAIR_CHARACTERISTIC_UUID,
+                                         BLECharacteristic::PROPERTY_READ |
+                                         BLECharacteristic::PROPERTY_WRITE
+                                       );
+
+  pTrackCharacteristic->setValue("For communicating tracking");
+  pTrackCharacteristic->setCallbacks(new TrackWriteCB());
+
+  pPairCharacteristic->setValue("For pairing tracking");
+  pPairCharacteristic->setCallbacks(new PairWriteCB());
 
   pServer->setCallbacks(new ConnectCB());
   
-  pService->start();
+  pTrackService->start();
+  pPairService->start();
   
   pAdvertising = pServer->getAdvertising();
   pAdvertising->addServiceUUID(TRACK_SERVICE_UUID);
+  pAdvertising->addServiceUUID(PAIR_SERVICE_UUID);
   pAdvertising->setScanResponse(true);
   pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue
   pAdvertising->setMinPreferred(0x12);

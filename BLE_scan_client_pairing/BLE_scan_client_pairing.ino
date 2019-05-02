@@ -127,9 +127,11 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
       strcpy(deviceName, advertisedDevice.getName().c_str());
       //TODO: NO LONGER SETTING MAN DATA - NEED TO FIGURE OUT HOW TO IDENTIFY OUR DEVICES
       strcpy(deviceDesc, advertisedDevice.getManufacturerData().c_str());
-      Serial.println(deviceDesc);
+      Serial.println(strncmp(manufactureDesc, deviceName, 6) == 0);
+      Serial.println(7>= strlen(deviceName));
+      Serial.println(strlen(deviceName));
       Serial.println(deviceName);
-      if (strcmp(deviceName, manufactureDesc) == 0) {
+      if ((7<= strlen(deviceName)) && (strncmp(manufactureDesc, deviceName, 7) == 0)) {
         Serial.println("GREAAT SUCESS");
 //        BLEClient*  pClient  = BLEDevice::createClient();
 //        pClient->setClientCallbacks(new MyClientCallback());
@@ -229,7 +231,7 @@ void loop() {
         BLERemoteService* pRemoteService = pClient->getService(PAIR_SERVICE_UUID);
         if (pRemoteService == nullptr) {
           Serial.print("Failed to find our service UUID: ");
-          Serial.println(serviceUUID.toString().c_str());
+//          Serial.println(serviceUUID.toString().c_str());
           pClient->disconnect();
         }
         Serial.println(" - Found our service");
@@ -239,7 +241,7 @@ void loop() {
         BLERemoteCharacteristic* pRemoteCharacteristic = pRemoteService->getCharacteristic(PAIR_CHARACTERISTIC_UUID);
         if (pRemoteCharacteristic == nullptr) {
           Serial.print("Failed to find our characteristic UUID: ");
-          Serial.println(charUUID.toString().c_str());
+//          Serial.println(charUUID.toString().c_str());
           pClient->disconnect();
         }
         Serial.println(" - Found our characteristic");
