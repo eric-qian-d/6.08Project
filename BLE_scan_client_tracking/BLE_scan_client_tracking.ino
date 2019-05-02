@@ -104,7 +104,7 @@ static BLEUUID PAIR_CHARACTERISTIC_UUID("ceb5483e-36e1-4688-b7f5-ea07361b26a3");
 
 int refreshOrSelectPin = 16;
 int togglePin = 5;
-int buzzerPin = 19;
+int buzzerPin = 22;
 int lastButtonPress;
 int scrollPosition;
 int arrayPtr = 0;
