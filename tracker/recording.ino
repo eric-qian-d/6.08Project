@@ -4,17 +4,17 @@ void handle_record() {
   Serial.println("sending...");
   Serial.print("\nStarting connection to server...");
   delay(300);
-  bool conn = false;
-  for (int i = 0; i < 10; i++) {
-    int val = (int)client.connect(SERVER, 443);
-    Serial.print(i); Serial.print(": "); Serial.println(val);
-    if (val != 0) {
-      conn = true;
-      break;
-    }
-    Serial.print(".");
-    delay(300);
-  }
+  bool conn = true;
+//  for (int i = 0; i < 10; i++) {
+//    int val = (int)client.connect(SERVER, 443);
+//    Serial.print(i); Serial.print(": "); Serial.println(val);
+//    if (val != 0) {
+//      conn = true;
+//      break;
+//    }
+//    Serial.print(".");
+//    delay(300);
+//  }
   if (!conn) {
     Serial.println("Connection failed!");
     return;
@@ -89,6 +89,7 @@ void handle_record() {
 
 //function used to record audio at sample rate for a fixed nmber of samples
 void record_audio() {
+
   int sample_num = 0;    // counter for samples
   int enc_index = strlen(PREFIX) - 1;  // index counter for encoded samples
   float time_between_samples = 1000000 / SAMPLE_FREQ;
@@ -102,6 +103,9 @@ void record_audio() {
   uint32_t start = millis();
   time_since_sample = micros();
   button_state = digitalRead(PIN_1);
+  while (button_state) {
+    button_state = digitalRead(PIN_1);
+  }
   while (!button_state && sample_num < NUM_SAMPLES) { //read in NUM_SAMPLES worth of audio data
     value = analogRead(AUDIO_IN);  //make measurement
     raw_samples[sample_num % 3] = mulaw_encode(value - 1241); //remove 1.0V offset (from 12 bit reading)

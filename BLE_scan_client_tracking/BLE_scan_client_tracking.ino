@@ -104,17 +104,21 @@ static BLEUUID PAIR_CHARACTERISTIC_UUID("ceb5483e-36e1-4688-b7f5-ea07361b26a3");
 
 int refreshOrSelectPin = 16;
 int togglePin = 5;
+int buzzerPin = 19;
 int lastButtonPress;
 int scrollPosition;
 int arrayPtr = 0;
+int trackPtr = 0;
 char manufactureDesc[15];
 bool paired = false;
 bool connected = false;
+bool beep = false;
 char uuid[400];
 
 Button refreshOrSelectButton(refreshOrSelectPin);
 Button toggleButton(togglePin);
 BLEAdvertisedDevice* devices[5]; // can have a list of 4 devices that are advertised at any given time
+BLEClient* trackedDevices[5]; // can have a list of 4 devices that are advertised at any given time
 
 BLEScan* pBLEScan;
 
@@ -126,9 +130,8 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
       strcpy(deviceName, advertisedDevice.getName().c_str());
       //TODO: NO LONGER SETTING MAN DATA - NEED TO FIGURE OUT HOW TO IDENTIFY OUR DEVICES
       strcpy(deviceDesc, advertisedDevice.getManufacturerData().c_str());
-      Serial.println(deviceDesc);
       Serial.println(deviceName);
-      if (strcmp(deviceName, manufactureDesc) == 0) {
+      if ((7<= strlen(deviceName)) && (strncmp(manufactureDesc, deviceName, 7) == 0)) {
         Serial.println("GREAAT SUCESS");
 //        BLEClient*  pClient  = BLEDevice::createClient();
 //        pClient->setClientCallbacks(new MyClientCallback());
@@ -166,6 +169,7 @@ class MyClientCallback : public BLEClientCallbacks {
   void onDisconnect(BLEClient* pclient) {
     connected = false;
     Serial.println("onDisconnect");
+    beep = true;
   }
 };
 
@@ -191,6 +195,9 @@ void setup() {
   scrollPosition = 0;
   pinMode(togglePin, INPUT_PULLUP);
   pinMode(refreshOrSelectPin, INPUT_PULLUP);
+  pinMode(buzzerPin, OUTPUT);
+  ledcSetup(0,1E5,12);
+  ledcAttachPin(buzzerPin,0);
   strcpy(manufactureDesc, "MYESP32");
 }
 
@@ -228,7 +235,6 @@ void loop() {
         BLERemoteService* pRemoteService = pClient->getService(TRACK_SERVICE_UUID);
         if (pRemoteService == nullptr) {
           Serial.print("Failed to find our service UUID: ");
-          Serial.println(serviceUUID.toString().c_str());
           pClient->disconnect();
         }
         Serial.println(" - Found our service");
@@ -238,7 +244,6 @@ void loop() {
         BLERemoteCharacteristic* pRemoteCharacteristic = pRemoteService->getCharacteristic(TRACK_CHARACTERISTIC_UUID);
         if (pRemoteCharacteristic == nullptr) {
           Serial.print("Failed to find our characteristic UUID: ");
-          Serial.println(charUUID.toString().c_str());
           pClient->disconnect();
         }
         Serial.println(" - Found our characteristic");
@@ -249,16 +254,16 @@ void loop() {
           Serial.print("Set changed");
         }
 
-
   } else if (toggleRes != 0 ) {
     scrollPosition = (scrollPosition + 1) % (arrayPtr);
     rerender();
   }
 
-  if(paired) {
-    if(!connected) {
-      Serial.println("SOMETHING IS WRONG");
-    }
+  if (beep) {
+    Serial.println("BEEEEEP");
+    digitalWrite(buzzerPin, HIGH);
+    ledcWriteTone(0,800);
+//    ledcWriteNote(0,NOTE_C,1);
   }
 
 

@@ -200,7 +200,8 @@ void welcome() {
 
   // fetch weather data
 
-  // fetch_weather_data();
+  //fetch_weather_data();
+  fetch_calendar_data();                          
 }
 
 void register_prompt() {
