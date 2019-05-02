@@ -20,8 +20,8 @@ def request_handler(request):
 			return 'need ID, name, and description to pair an item'
 
 		item_id = str(request['form']['id'])
-		name = str(request['form']['name'])
-		description =str(request['form']['description']) if 'description' in request['form'] else ' ' 
+		name = str(request['form']['name']).strip('\"')
+		description =str(request['form']['description']).strip('\"') if 'description' in request['form'] else ' ' 
 
 		conn = sqlite3.connect(db)
 		c = conn.cursor()
@@ -52,9 +52,22 @@ def request_handler(request):
 		c = conn.cursor()
 		out = ""
 		table = c.execute('''SELECT name,item_id,description FROM my_table;''').fetchall()
+
+		items = []
+		ids = []
 		for item,item_id,description in table:
-			line = item + " " + item_id + " " + description + "\n"
-			out += line
+			items.append(item)
+			ids.append(item_id)
+
+		if 'return_id' in request['values']:
+			for i in ids:
+				out += i + ","
+
+		else:
+			sorted_items = sorted(items)
+			for i in sorted_items:
+				out += i + "\n"
+
 		conn.commit()
 		conn.close()
 		
