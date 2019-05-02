@@ -26,7 +26,6 @@ BLEAdvertising *pAdvertising;
 BLEAdvertisementData advert;
 
 int ledPin = 19;
-int buzzerPin = 
 boolean tracked = false;
 boolean paired = false;
 boolean connected = false;
