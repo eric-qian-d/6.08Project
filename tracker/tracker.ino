@@ -15,6 +15,7 @@
 #define RECORD_NAME 2
 #define NAME_VERIFY 3
 #define VIEW_REGISTERED 4
+#define SELECTION_MENU 7
 
 #define SHORTPRESS 1
 #define LONGPRESS 2
@@ -25,8 +26,8 @@
 
 TFT_eSPI tft = TFT_eSPI();
 
-char network[] = "6s08";
-char password[] = "iesc6s08";
+char network[] = "MIT GUEST";
+char password[] = "";
 
 const char USER[] = "jenning";
 
@@ -48,6 +49,8 @@ const uint8_t TIMEOUT_PERIOD = 2500; //milliseconds
 
 uint8_t toggle;
 uint8_t toggle_state;
+uint8_t toggle_selection;
+uint8_t num_items;
 uint8_t state;
 uint8_t screen_color;
 
@@ -219,6 +222,20 @@ void view_registered() {
   tft.println(item_response_buffer);
 }
 
+void show_selection_menu() {
+  toggle_selection = 0;
+  tft.fillScreen(TFT_BLACK); //fill background
+  char item_response_buffer[OUT_BUFFER_SIZE];
+  char item_request_buffer[IN_BUFFER_SIZE];
+  sprintf(item_request_buffer, "GET http://608dev.net/sandbox/sc/lyy/new_test.py HTTP/1.1\r\n");
+  strcat(item_request_buffer, "Host: 608dev.net\r\n");
+  strcat(item_request_buffer, "\r\n"); //new line from header to body
+  do_http_request("608dev.net", item_request_buffer, item_response_buffer, 50, RESPONSE_TIMEOUT, true);
+  tft.setCursor(2, 10, 1); // set the cursor
+  tft.println("Select item to track:");
+  tft.println(item_response_buffer);
+}
+
 void loop() {
   Serial.println(state);
   switch (state) {
@@ -237,6 +254,9 @@ void loop() {
           if (toggle_state == 0) {
             register_prompt();
             state = REGISTER;
+          } else if (toggle_state == 1) {
+            show_selection_menu();
+            state = SELECTION_MENU;
           } else if (toggle_state == 2) {
             view_registered();
             state = VIEW_REGISTERED;

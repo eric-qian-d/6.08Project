@@ -16,7 +16,7 @@ def get_events():
         'q': '',
     },
     headers={
-        'Authorization': 'Bearer ya29.Glv9BiFrD4VXT8MwcG9ypcfrgm9gfS7ZpFNsAjzsMdn0Q_GiMTwnIcZL_GBF7hVTfVKeDd-dElmsYOXLjNvs-yP4oTr8nK1eWsqJCm3rb16dBAqmP4IZPAxwSWla',
+        'Authorization': 'Bearer ya29.Glv9Brfa4YT_XRgxOlMzx1DcKqvf26K3_aihX-U_gqP953e7Vg8sdmgQ_MyKaVR60V8AdrodrGP8ETSX4BExZp6TwAQnY9MuRXv6pUvQhvbAN4wCI9lPydRoLNvA',
     },
             )
     response.raise_for_status()
@@ -26,3 +26,4 @@ def get_events():
         result += (response.json()["items"][i]["summary"]) + "\n"
     return result
 
+print(get_events());
