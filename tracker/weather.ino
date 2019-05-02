@@ -20,7 +20,4 @@ void fetch_weather_data() {
   strcat(weather_request_buffer, "\r\n"); //new line from header to body
   do_http_request("608dev.net", weather_request_buffer, weather_response_buffer, 50, RESPONSE_TIMEOUT, true);
   Serial.println(weather_response_buffer);
-
-  tft.fillScreen(TFT_BLACK); //fill background
-  tft.setCursor(0, 0, 1); // set the cursor
 }

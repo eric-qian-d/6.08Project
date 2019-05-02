@@ -14,6 +14,7 @@
 #define REGISTER 1
 #define RECORD_NAME 2
 #define NAME_VERIFY 3
+#define VIEW_REGISTERED 4
 
 #define SHORTPRESS 1
 #define LONGPRESS 2
@@ -24,8 +25,8 @@
 
 TFT_eSPI tft = TFT_eSPI();
 
-char network[] = "MIT GUEST";
-char password[] = "";
+char network[] = "6s08";
+char password[] = "iesc6s08";
 
 const char USER[] = "jenning";
 
@@ -195,18 +196,30 @@ void welcome() {
 
   // fetch weather data
 
-  fetch_weather_data();
+  // fetch_weather_data();
 }
 
 void register_prompt() {
   tft.fillScreen(TFT_BLACK); //fill background
   tft.drawString("Registering: place", 0, 50, 1);
   tft.drawString("your item next to me!", 0, 60, 1);
+}
 
+void view_registered() {
+  tft.fillScreen(TFT_BLACK); //fill background
+  char item_response_buffer[OUT_BUFFER_SIZE];
+  char item_request_buffer[IN_BUFFER_SIZE];
+  sprintf(item_request_buffer, "GET http://608dev.net/sandbox/sc/lyy/new_test.py HTTP/1.1\r\n");
+  strcat(item_request_buffer, "Host: 608dev.net\r\n");
+  strcat(item_request_buffer, "\r\n"); //new line from header to body
+  do_http_request("608dev.net", item_request_buffer, item_response_buffer, 50, RESPONSE_TIMEOUT, true);
+  tft.setCursor(0, 10, 1); // set the cursor
+  tft.println("Registered items:");
+  tft.println(item_response_buffer);
 }
 
 void loop() {
-  //Serial.println(state);
+  Serial.println(state);
   switch (state) {
     case IDLE: {
         if (!in_welcome) {
@@ -214,12 +227,26 @@ void loop() {
         }
         toggle = refreshOrSelectButton.update1();
         if (toggle == SHORTPRESS) {
+          tft.drawString(" ", 2, 10 * (toggle_state + 1), 1);
           toggle_state += 1;
+          toggle_state %= 3;
+          tft.drawString(select_char, 2, 10 * (toggle_state + 1), 1);
         } else if (toggle == LONGPRESS) {
           in_welcome = false;
-          register_prompt();
-          state = REGISTER;
+          if (toggle_state == 0) {
+            register_prompt();
+            state = REGISTER;
+          } else if (toggle_state == 2) {
+            view_registered();
+            state = VIEW_REGISTERED;
+          }
         }
+      }
+      break;
+    case VIEW_REGISTERED:
+      toggle = refreshOrSelectButton.update1();
+      if (toggle == SHORTPRESS) {
+        state = IDLE;
       }
       break;
     case REGISTER: {

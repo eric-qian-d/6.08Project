@@ -34,7 +34,7 @@ boolean connected = false;
 class WriteCB: public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic *pCharacteristic) {
 
-      if (pCharacteristic->getUUID() == TRACK_CHARACTERISTIC_UUID) {
+      if ((pCharacteristic->getUUID()).equals(TRACK_CHARACTERISTIC_UUID)) {
         std::string value = pCharacteristic->getValue();
         if (value == "false") {
           tracked = false;
@@ -54,7 +54,7 @@ class WriteCB: public BLECharacteristicCallbacks {
         }
       }
 
-      if (pCharacteristic->getUUID() == PAIR_CHARACTERISTIC_UUID) {
+      if ((pCharacteristic->getUUID()).equals(PAIR_CHARACTERISTIC_UUID)) {
         std::string value = pCharacteristic->getValue();
         if (value == "false") {
           paired = false;
