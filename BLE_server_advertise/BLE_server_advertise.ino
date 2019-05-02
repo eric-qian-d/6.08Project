@@ -26,6 +26,7 @@ BLEAdvertising *pAdvertising;
 BLEAdvertisementData advert;
 
 int ledPin = 19;
+int buzzerPin = 
 boolean tracked = false;
 boolean paired = false;
 boolean connected = false;
@@ -34,7 +35,6 @@ boolean connected = false;
 class TrackWriteCB: public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic *pCharacteristic) {
 
-      
         std::string value = pCharacteristic->getValue();
         if (value == "false") {
           tracked = false;
@@ -57,6 +57,7 @@ class TrackWriteCB: public BLECharacteristicCallbacks {
 
 class PairWriteCB: public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic *pCharacteristic) {
+
         std::string value = pCharacteristic->getValue();
         if (value == "false") {
           paired = false;
@@ -65,7 +66,6 @@ class PairWriteCB: public BLECharacteristicCallbacks {
           paired = true;
         }
   }
-
 };
 
 class ConnectCB: public BLEServerCallbacks{
@@ -76,8 +76,6 @@ class ConnectCB: public BLEServerCallbacks{
     connected = false;
   }
 };
-
-
 
 void setManData(String c, int c_size, BLEAdvertisementData &adv, int m_code) {
   
@@ -141,8 +139,9 @@ void setup() {
   
   Serial.println("Characteristic defined! Now you can read it in your phone!");
 
-  pinMode(ledPin, OUTPUT);
-  
+  pinMode(ledPin, OUTPUT); //LED setup
+  ledcSetup(0,1E5,12); //buzzer setup
+  ledcAttachPin(22,0);
 }
 
 void loop() {
@@ -150,12 +149,15 @@ void loop() {
   if(paired) {
     Serial.println("being paired");
     digitalWrite(ledPin, HIGH);
+    ledcWriteTone(0,800);
   } else if(tracked && !connected) {
     Serial.println("we have an issue");
     //code for tracking 
     digitalWrite(ledPin, HIGH);
+    ledcWriteTone(0,800);
   } else {
     digitalWrite(ledPin, LOW);
+    ledcWriteNote(0,NOTE_C,1);  
   }
   Serial.print(paired);
   Serial.print(tracked);
