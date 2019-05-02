@@ -26,6 +26,7 @@ BLEAdvertising *pAdvertising;
 BLEAdvertisementData advert;
 
 int ledPin = 19;
+int buzzerPin = 
 boolean tracked = false;
 boolean paired = false;
 boolean connected = false;
@@ -62,9 +63,7 @@ class WriteCB: public BLECharacteristicCallbacks {
         if (value == "true") {
           paired = true;
         }
-      }
-      
-      
+      } 
     }
 };
 
@@ -76,8 +75,6 @@ class ConnectCB: public BLEServerCallbacks{
     connected = false;
   }
 };
-
-
 
 void setManData(String c, int c_size, BLEAdvertisementData &adv, int m_code) {
   
@@ -129,8 +126,9 @@ void setup() {
   
   Serial.println("Characteristic defined! Now you can read it in your phone!");
 
-  pinMode(ledPin, OUTPUT);
-  
+  pinMode(ledPin, OUTPUT); //LED setup
+  ledcSetup(0,1E5,12); //buzzer setup
+  ledcAttachPin(22,0);
 }
 
 void loop() {
@@ -138,12 +136,15 @@ void loop() {
   if(paired) {
     Serial.println("being paired");
     digitalWrite(ledPin, HIGH);
+    ledcWriteTone(0,800);
   } else if(tracked && !connected) {
     Serial.println("we have an issue");
     //code for tracking 
     digitalWrite(ledPin, HIGH);
+    ledcWriteTone(0,800);
   } else {
     digitalWrite(ledPin, LOW);
+    ledcWriteNote(0,NOTE_C,1);  
   }
   Serial.print(paired);
   Serial.print(tracked);
