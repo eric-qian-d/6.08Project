@@ -76,10 +76,10 @@ void handle_record() {
       char* starto = foll_coll + 2; //starting index
       char* endo = strstr(starto + 1, "\""); //ending index
       int transcript_len = endo - starto + 1;
-      char transcript[100] = {0};
+      char transcript[1000] = {0};
       strncat(transcript, starto, transcript_len);
       Serial.println(transcript);
-      strcpy(name_transcript, transcript);
+      strcpy(temp_transcript, transcript);
     }
     Serial.println("-----------");
     client.stop();
