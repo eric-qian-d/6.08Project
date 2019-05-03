@@ -28,11 +28,7 @@
 
 TFT_eSPI tft = TFT_eSPI();
 
-<<<<<<< HEAD
-char network[] = "MIT GUEST";
-=======
 char network[] = "MIT";
->>>>>>> a381c79270eee749887fafb08c257bf7ae990a46
 char password[] = "";
 
 const char USER[] = "jenning";

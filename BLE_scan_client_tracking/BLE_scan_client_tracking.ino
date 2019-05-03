@@ -263,7 +263,8 @@ void loop() {
     Serial.println("BEEEEEP");
     digitalWrite(buzzerPin, HIGH);
     ledcWriteTone(0,800);
-//    ledcWriteNote(0,NOTE_C,1);
+    ledcWriteNote(0,NOTE_C,1);
+    delay(500);
   }
 
 
