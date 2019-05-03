@@ -93,7 +93,7 @@ void setup() {
   Serial.begin(115200);
   Serial.println("Starting BLE work!");
 
-  BLEDevice::init("MYESP32");
+  BLEDevice::init("MYESP32A");
   BLEServer *pServer = BLEDevice::createServer();
   BLEService *pTrackService = pServer->createService(TRACK_SERVICE_UUID);
   BLECharacteristic *pTrackCharacteristic = pTrackService->createCharacteristic(
