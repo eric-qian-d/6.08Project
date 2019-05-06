@@ -4,27 +4,29 @@ void handle_record() {
   Serial.println("sending...");
   Serial.print("\nStarting connection to server...");
   delay(300);
-  bool conn = true;
-//  for (int i = 0; i < 10; i++) {
-//    int val = (int)client.connect(SERVER, 443);
-//    Serial.print(i); Serial.print(": "); Serial.println(val);
-//    if (val != 0) {
-//      conn = true;
-//      break;
-//    }
-//    Serial.print(".");
-//    delay(300);
-//  }
+  WiFiClient client;
+  bool conn = false;
+  for (int i = 0; i < 10; i++) {
+    int val = (int)client.connect("608dev.net", 80);
+    Serial.print(i); Serial.print(": "); Serial.println(val);
+    if (val != 0) {
+      conn = true;
+      break;
+    }
+    Serial.print(".");
+    delay(300);
+  }
   if (!conn) {
     Serial.println("Connection failed!");
     return;
   } else {
+    //char holder[10010] = {0};
     Serial.println("Connected to server!");
     Serial.println(client.connected());
     int len = strlen(speech_data);
     // Make a HTTP request:
-    client.print("POST /v1/speech:recognize?key="); client.print(API_KEY); client.print(" HTTP/1.1\r\n");
-    client.print("Host: speech.googleapis.com\r\n");
+    client.print("POST /sandbox/sc/jenning/voiceapi.py"); client.print(" HTTP/1.1\r\n");
+    client.print("Host: 608dev.net\r\n");
     client.print("Content-Type: application/json\r\n");
     client.print("cache-control: no-cache\r\n");
     client.print("Content-Length: "); client.print(len);
@@ -37,13 +39,16 @@ void handle_record() {
       delay(80);//experiment with this number!
       //if (ind + jump_size < len) client.print(speech_data.substring(ind, ind + jump_size));
       strncat(temp_holder, speech_data + ind, jump_size);
+      Serial.println(temp_holder);
       client.print(temp_holder);
+      //strcat(holder, temp_holder);
       ind += jump_size;
       memset(temp_holder, 0, sizeof(temp_holder));
     }
     client.print("\r\n");
     //Serial.print("\r\n\r\n");
     Serial.println("Through send...");
+    //Serial.println(holder);
     unsigned long count = millis();
     while (client.connected()) {
       Serial.println("IN!");
@@ -70,17 +75,18 @@ void handle_record() {
       char_append(response, client.read(), OUT_BUFFER_SIZE);
     }
     Serial.println(response);
-    char* trans_id = strstr(response, "transcript");
-    if (trans_id != NULL) {
-      char* foll_coll = strstr(trans_id, ":");
-      char* starto = foll_coll + 2; //starting index
-      char* endo = strstr(starto + 1, "\""); //ending index
-      int transcript_len = endo - starto + 1;
-      char transcript[1000] = {0};
-      strncat(transcript, starto, transcript_len);
-      Serial.println(transcript);
-      strcpy(temp_transcript, transcript);
-    }
+    strcpy(temp_transcript, response);
+//    char* trans_id = strstr(response, "transcript");
+//    if (trans_id != NULL) {
+//      char* foll_coll = strstr(trans_id, ":");
+//      char* starto = foll_coll + 2; //starting index
+//      char* endo = strstr(starto + 1, "\""); //ending index
+//      int transcript_len = endo - starto + 1;
+//      char transcript[1000] = {0};
+//      strncat(transcript, starto, transcript_len);
+//      Serial.println(transcript);
+//      strcpy(temp_transcript, transcript);
+//    }
     Serial.println("-----------");
     client.stop();
     Serial.println("done");
