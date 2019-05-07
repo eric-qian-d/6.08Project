@@ -28,7 +28,9 @@
 
 TFT_eSPI tft = TFT_eSPI();
 
+
 char network[] = "MIT";
+
 char password[] = "";
 
 const char USER[] = "jenning";
@@ -177,17 +179,17 @@ void setup() {
   in_welcome = false;
   toggle_state = 0;
 
-  //BLE
+  // BLE
 
-//  BLEDevice::init("");
-//  pBLEScan = BLEDevice::getScan(); //create new scan
-//  pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
-//  pBLEScan->setActiveScan(true); //active scan uses more power, but get results faster
-//  pBLEScan->setInterval(0x80);
-//  pBLEScan->setWindow(0x10);  // less or equal setInterval value
-//  lastButtonPress = millis();
-//  scrollPosition = 0;
-//  strcpy(manufactureDesc, "608aa");
+  BLEDevice::init("");
+  pBLEScan = BLEDevice::getScan(); //create new scan
+  pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
+  pBLEScan->setActiveScan(true); //active scan uses more power, but get results faster
+  pBLEScan->setInterval(0x80);
+  pBLEScan->setWindow(0x10);  // less or equal setInterval value
+  lastButtonPress = millis();
+  scrollPosition = 0;
+  strcpy(manufactureDesc, "608aa");
 
 }
 
@@ -203,8 +205,8 @@ void welcome() {
 
   // fetch weather data
 
-  //fetch_weather_data();
-  fetch_calendar_data();                          
+  fetch_weather_data();
+  // fetch_calendar_data();                          
 }
 
 void register_prompt() {

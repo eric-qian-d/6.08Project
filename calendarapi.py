@@ -16,7 +16,7 @@ def get_events():
         'q': '',
     },
     headers={
-        'Authorization': 'Bearer ya29.Glv9Brfa4YT_XRgxOlMzx1DcKqvf26K3_aihX-U_gqP953e7Vg8sdmgQ_MyKaVR60V8AdrodrGP8ETSX4BExZp6TwAQnY9MuRXv6pUvQhvbAN4wCI9lPydRoLNvA',
+        'Authorization': 'Bearer ya29.Glv9BjWsVR_42fulonrr4shGe5HG94MkHXQBZ42fqxfyojZhKclQzN7yJ6Fs6Tv0m20v7BVP4FHAcC5cbLIg0C-V3RBdsjZWTboKvPQtTyTnC9Yz_Xycg9a4HX8h',
     },
             )
     response.raise_for_status()
@@ -25,5 +25,3 @@ def get_events():
     for i in range(size-1,size-11,-1):
         result += (response.json()["items"][i]["summary"]) + "\n"
     return result
-
-print(get_events());
