@@ -283,7 +283,7 @@ void show_selection_menu() {
 void loop() {
   button_state = digitalRead(PIN_1);
   button_state2 = digitalRead(PIN_2);
-//  Serial.println(state);
+  Serial.println(state);
   switch (state) {
     case IDLE: {
         if (!in_welcome) {
@@ -298,11 +298,11 @@ void loop() {
         } else if (toggle == LONGPRESS) {
           in_welcome = false;
           if (toggle_state == 0) {
-//            register_prompt();
-//            tft.fillScreen(TFT_BLACK);
-//            tft.println("Press button to record name");
-//            state = RECORD_NAME;
-            state = REGISTER; //UNCOMMENT ME
+            //register_prompt();//UNCOMMENT ME
+            tft.fillScreen(TFT_BLACK);
+            tft.println("Press button to record name");
+            state = RECORD_NAME;
+            // state = REGISTER; //UNCOMMENT ME
           } else if (toggle_state == 1) {
             state = TRACK;
           } else if (toggle_state == 2) {
@@ -459,17 +459,13 @@ void loop() {
   
 //        if (!button_state && button_state != old_button_state) {
           handle_record();
+          state = DESCRIPTION_VERIFY;
           tft.fillScreen(TFT_BLACK);
           tft.drawString("Is", 0, 10, 1);
           tft.drawString(temp_transcript, 0, 20, 1);
           tft.drawString("correct?", 0, 30, 1);
 //        }
   
-        // no description
-        if (toggleRes == SHORTPRESS) {
-          strcpy(description_transcript, temp_transcript);
-          state = DESCRIPTION_VERIFY;
-        }
       }
       break;
 
