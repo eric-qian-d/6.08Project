@@ -97,46 +97,77 @@ boolean in_welcome;
 char select_char[] = "-"; // selection indicator variable
 char uuid[400]; // stores uuid
 
+static BLEUUID TRACK_SERVICE_UUID("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
+static BLEUUID TRACK_CHARACTERISTIC_UUID("beb5483e-36e1-4688-b7f5-ea07361b26a8");
+
+static BLEUUID PAIR_SERVICE_UUID("3fafc201-1fb5-459e-8fcc-c5c9c331914c");
+static BLEUUID PAIR_CHARACTERISTIC_UUID("ceb5483e-36e1-4688-b7f5-ea07361b26a3");
+
 int refreshOrSelectPin = 16;
 int togglePin = 5;
 int lastButtonPress;
 int scrollPosition;
 int arrayPtr = 0;
 char manufactureDesc[15];
-int BLEconnected = 0;
+bool paired = false;
+bool connected = false;
+bool tracking = false;
+char name[30];
 
 Button refreshOrSelectButton(refreshOrSelectPin);
 Button toggleButton(togglePin);
-BLEAdvertisedDevice* devices[3];
+BLEAdvertisedDevice* devices[5]; // can have a list of 4 devices that are advertised at any given time
 
-BLEScan* pBLEScan;
+BLEScan* pBLEScan;;
 
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
     void onResult(BLEAdvertisedDevice advertisedDevice) {
+      Serial.println(advertisedDevice.toString().c_str());
       char deviceDesc[100];
       char deviceName[100];
       strcpy(deviceName, advertisedDevice.getName().c_str());
+      //TODO: NO LONGER SETTING MAN DATA - NEED TO FIGURE OUT HOW TO IDENTIFY OUR DEVICES
       strcpy(deviceDesc, advertisedDevice.getManufacturerData().c_str());
-      if (strcmp(deviceName, manufactureDesc) == 0) {
-        if (arrayPtr == 0) {
-          devices[0] = new BLEAdvertisedDevice(advertisedDevice);
+      Serial.println(deviceName);
+      if ((7<= strlen(deviceName)) && (strncmp(manufactureDesc, deviceName, 7) == 0)) {
+        Serial.println("GREAAT SUCESS");
+//        BLEClient*  pClient  = BLEDevice::createClient();
+//        pClient->setClientCallbacks(new MyClientCallback());
+//        Serial.println("ready to connect");
+//        pClient->connect(&advertisedDevice);  // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
+//        Serial.println(" - Connected to server");
+        if (arrayPtr < 4) {
+          devices[arrayPtr] = new BLEAdvertisedDevice(advertisedDevice);
           arrayPtr++;
-        } else {
-          devices [1] = new BLEAdvertisedDevice(advertisedDevice);
         }
       }
     }
 };
 
-class MyClientCallback : public BLEClientCallbacks {
-    void onConnect(BLEClient* pclient) {
-      BLEconnected = 1;
+void rerender() {
+  tft.fillScreen(TFT_BLACK); //fill background
+  for(int i = 0; i < arrayPtr; i++) {
+    char deviceName[20];
+    strcpy(deviceName, devices[i]->getName().c_str());
+    tft.drawString(deviceName, 10, 10 * i, 1);
+    if (i == scrollPosition) {
+      tft.drawString(">", 0, 10*i, 1);
     }
+  }
 
-    void onDisconnect(BLEClient* pclient) {
-      //    connected = false;
-      BLEconnected = 2;
-    }
+}
+
+
+class MyClientCallback : public BLEClientCallbacks {
+  void onConnect(BLEClient* pclient) {
+    connected = true;
+    Serial.println("onConnect");
+  }
+
+  void onDisconnect(BLEClient* pclient) {
+    connected = false;
+    Serial.println("onDisconnect");
+  }
 };
 
 void setup() {
@@ -185,11 +216,13 @@ void setup() {
   pBLEScan = BLEDevice::getScan(); //create new scan
   pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
   pBLEScan->setActiveScan(true); //active scan uses more power, but get results faster
-  pBLEScan->setInterval(0x80);
-  pBLEScan->setWindow(0x10);  // less or equal setInterval value
+  pBLEScan->setInterval(100);
+  pBLEScan->setWindow(99);  // less or equal setInterval value
   lastButtonPress = millis();
   scrollPosition = 0;
-  strcpy(manufactureDesc, "608aa");
+//  pinMode(togglePin, INPUT_PULLUP);
+//  pinMode(refreshOrSelectPin, INPUT_PULLUP);
+  strcpy(manufactureDesc, "MYESP32");
 
 }
 
@@ -284,42 +317,85 @@ void loop() {
         int refreshOrSelectRes = refreshOrSelectButton.update1();
         int toggleRes = toggleButton.update1();
 
-        if (refreshOrSelectRes == LONGPRESS) {//refresh
+      //  Serial.print(refreshOrSelectRes);
+      //  Serial.println(toggleRes);
+      
+        if (refreshOrSelectRes == 2) {//refresh
           Serial.println("REFERESHING");
           arrayPtr = 0;
           BLEScanResults foundDevices = pBLEScan->start(5, false);
           delay(5000);//wait for scan to terminate
           pBLEScan->clearResults();   // delete results fromBLEScan buffer to release memory
-
-        } else if (refreshOrSelectRes == SHORTPRESS) {//select the current
+          rerender();
+      
+        } else if (refreshOrSelectRes == 1) {//select the current
           Serial.println("in the connecting block");
           BLEAdvertisedDevice* myDevice = devices[scrollPosition];
-
+      
           Serial.println(myDevice->getServiceUUID().toString().c_str());
-          strcpy(uuid, myDevice->getServiceUUID().toString().c_str());
-
+      
           BLEClient*  pClient  = BLEDevice::createClient();
-
+      
           pClient->setClientCallbacks(new MyClientCallback());
-
+          
           Serial.println("ready to connect");
           pClient->connect(myDevice);  // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
           Serial.println(" - Connected to server");
-          //        pair
+          strcpy(uuid, myDevice->getServiceUUID().toString().c_str());
+          paired = true;
 
+          // Obtain a reference to the service we are after in the remote BLE server.
+          BLERemoteService* pRemoteService = pClient->getService(PAIR_SERVICE_UUID);
+          if (pRemoteService == nullptr) {
+            Serial.print("Failed to find our service UUID: ");
+            pClient->disconnect();
+          }
+          Serial.println(" - Found our service");
+      
+      
+          // Obtain a reference to the characteristic in the service of the remote BLE server.
+          BLERemoteCharacteristic* pRemoteCharacteristic = pRemoteService->getCharacteristic(PAIR_CHARACTERISTIC_UUID);
+          if (pRemoteCharacteristic == nullptr) {
+            Serial.print("Failed to find our characteristic UUID: ");
+            pClient->disconnect();
+          }
+          Serial.println(" - Found our characteristic");
+      
+          // Read the value of the characteristic.
+          if(pRemoteCharacteristic->canWrite()) {
+            pRemoteCharacteristic->writeValue("true", false);
+            Serial.print("Set changed");
+          }
+  
+          int yes = refreshOrSelectButton.update1();
+          int no = toggleButton.update1();
+  
+          while(yes == 0 && no == 0) {
+            yes = refreshOrSelectButton.update1();
+            no = toggleButton.update1();
+          }
+  
+          if (yes != 0) {
+            pRemoteCharacteristic->writeValue("false", false);
+            strcpy(name, myDevice->getName().c_str());
+//            Serial.println("SUCCESSFULLY PAIRED!");
+            pClient -> disconnect();
+            tft.fillScreen(TFT_BLACK);
+            tft.drawString("Success!", 0, 50, 1);
+            while (millis() - timeout_timer < TIMEOUT_PERIOD);
+            tft.fillScreen(TFT_BLACK);
+            tft.drawString("Press button to record item's name", 0, 50, 1);
+            state = RECORD_NAME;
+          }
+          rerender();
 
         } else if (toggleRes != 0 ) {
-          scrollPosition = (scrollPosition + 1) % 2;
-          //        rerender();
+          scrollPosition = (scrollPosition + 1) % (arrayPtr);
+          rerender();
         }
 
         if (BLEconnected == SUCCESS) {
-          tft.fillScreen(TFT_BLACK);
-          tft.drawString("Success!", 0, 50, 1);
-          while (millis() - timeout_timer < TIMEOUT_PERIOD);
-          tft.fillScreen(TFT_BLACK);
-          tft.drawString("Press button to record item's name", 0, 50, 1);
-          state = RECORD_NAME;
+          
         } else if (BLEconnected == FAIL) {
           timeout_timer = millis();
           tft.fillScreen(TFT_BLACK);
@@ -405,7 +481,7 @@ void loop() {
           strcpy(description_transcript, temp_transcript);
           // post request to server
           char body[200]; //for body;
-          sprintf(body, "id=%s&name=%s&description=%s", "23452rasdfasfaaaaaaaa" , name_transcript, description_transcript); //generate body, posting to User, 1 step
+          sprintf(body, "id=%s&name=%s&description=%s", uuid , name_transcript, description_transcript); //generate body, posting to User, 1 step
           int body_len = strlen(body); //calculate body length (for header reporting)
           sprintf(request_buffer, "POST http://608dev.net/sandbox/sc/lyy/new_test.py HTTP/1.1\r\n");
           strcat(request_buffer, "Host: 608dev.net\r\n");
