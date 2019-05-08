@@ -18,6 +18,7 @@
 #define SELECTION_MENU 7
 #define RECORD_DESCRIPTION 5
 #define DESCRIPTION_VERIFY 6
+#define TRACK 7
 
 #define SHORTPRESS 1
 #define LONGPRESS 2
@@ -112,7 +113,9 @@ char manufactureDesc[15];
 bool paired = false;
 bool connected = false;
 bool tracking = false;
+bool beep = false;
 char name[30];
+int buzzerPin = 22;
 
 Button refreshOrSelectButton(refreshOrSelectPin);
 Button toggleButton(togglePin);
@@ -167,6 +170,9 @@ class MyClientCallback : public BLEClientCallbacks {
   void onDisconnect(BLEClient* pclient) {
     connected = false;
     Serial.println("onDisconnect");
+    if (tracking) {
+      beep = true;
+    }
   }
 };
 
@@ -222,6 +228,10 @@ void setup() {
   scrollPosition = 0;
 //  pinMode(togglePin, INPUT_PULLUP);
 //  pinMode(refreshOrSelectPin, INPUT_PULLUP);
+
+  pinMode(buzzerPin, OUTPUT);
+  ledcSetup(0,1E5,12);
+  ledcAttachPin(buzzerPin,0);
   strcpy(manufactureDesc, "MYESP32");
 
 }
@@ -298,6 +308,8 @@ void loop() {
             tft.println("Press button to record name");
             state = RECORD_NAME;
 //            state = REGISTER; UNCOMMENT ME
+          } else if (toggle_state == 1) {
+            state = TRACK;
           } else if (toggle_state == 2) {
             view_registered();
             state = VIEW_REGISTERED;
@@ -394,15 +406,15 @@ void loop() {
           rerender();
         }
 
-        if (BLEconnected == SUCCESS) {
-          
-        } else if (BLEconnected == FAIL) {
-          timeout_timer = millis();
-          tft.fillScreen(TFT_BLACK);
-          tft.drawString("Failed. Module not found. :(", 0, 50, 1);
-          while (millis() - timeout_timer < TIMEOUT_PERIOD);
-          state = IDLE; // go back to IDLE
-        }
+//        if (BLEconnected == SUCCESS) {
+//          
+//        } else if (BLEconnected == FAIL) {
+//          timeout_timer = millis();
+//          tft.fillScreen(TFT_BLACK);
+//          tft.drawString("Failed. Module not found. :(", 0, 50, 1);
+//          while (millis() - timeout_timer < TIMEOUT_PERIOD);
+//          state = IDLE; // go back to IDLE
+//        }
       }
       break;
     case RECORD_NAME: {
@@ -503,6 +515,73 @@ void loop() {
         }
       }
       break;
+    case TRACK:
+      {
+        int refreshOrSelectRes = refreshOrSelectButton.update1();
+        int toggleRes = toggleButton.update1();
+      //  Serial.print(refreshOrSelectRes);
+      //  Serial.println(toggleRes);
+      
+        if (refreshOrSelectRes == 2) {//refresh
+          Serial.println("REFERESHING");
+          arrayPtr = 0;
+          BLEScanResults foundDevices = pBLEScan->start(5, false);
+          delay(5000);//wait for scan to terminate
+          pBLEScan->clearResults();   // delete results fromBLEScan buffer to release memory
+          rerender();
+      
+        } else if (refreshOrSelectRes == 1) {//select the current
+          Serial.println("in the connecting block");
+          BLEAdvertisedDevice* myDevice = devices[scrollPosition];
+      
+          Serial.println(myDevice->getServiceUUID().toString().c_str());
+      
+          BLEClient*  pClient  = BLEDevice::createClient();
+      
+          pClient->setClientCallbacks(new MyClientCallback());
+          
+          Serial.println("ready to connect");
+          pClient->connect(myDevice);  // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
+          Serial.println(" - Connected to server");
+          strcpy(uuid, myDevice->getServiceUUID().toString().c_str());
+          paired = true;
+      
+              // Obtain a reference to the service we are after in the remote BLE server.
+              BLERemoteService* pRemoteService = pClient->getService(TRACK_SERVICE_UUID);
+              if (pRemoteService == nullptr) {
+                Serial.print("Failed to find our service UUID: ");
+                pClient->disconnect();
+              }
+              Serial.println(" - Found our service");
+          
+          
+              // Obtain a reference to the characteristic in the service of the remote BLE server.
+              BLERemoteCharacteristic* pRemoteCharacteristic = pRemoteService->getCharacteristic(TRACK_CHARACTERISTIC_UUID);
+              if (pRemoteCharacteristic == nullptr) {
+                Serial.print("Failed to find our characteristic UUID: ");
+                pClient->disconnect();
+              }
+              Serial.println(" - Found our characteristic");
+          
+              // Read the value of the characteristic.
+              if(pRemoteCharacteristic->canWrite()) {
+                pRemoteCharacteristic->writeValue("true", false);
+                Serial.print("Set changed");
+              }
+      
+        } else if (toggleRes != 0 ) {
+          scrollPosition = (scrollPosition + 1) % (arrayPtr);
+          rerender();
+        }
+      
+        if (beep) {
+          Serial.println("BEEEEEP");
+          digitalWrite(buzzerPin, HIGH);
+          ledcWriteTone(0,800);
+          ledcWriteNote(0,NOTE_C,1);
+          delay(500);
+        }
+      }
   }
 
   while (millis() - timer < 10);
