@@ -134,11 +134,6 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
       Serial.println(deviceName);
       if ((7<= strlen(deviceName)) && (strncmp(manufactureDesc, deviceName, 7) == 0)) {
         Serial.println("GREAAT SUCESS");
-//        BLEClient*  pClient  = BLEDevice::createClient();
-//        pClient->setClientCallbacks(new MyClientCallback());
-//        Serial.println("ready to connect");
-//        pClient->connect(&advertisedDevice);  // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
-//        Serial.println(" - Connected to server");
         if (arrayPtr < 4) {
           devices[arrayPtr] = new BLEAdvertisedDevice(advertisedDevice);
           arrayPtr++;
@@ -288,7 +283,7 @@ void show_selection_menu() {
 void loop() {
   button_state = digitalRead(PIN_1);
   button_state2 = digitalRead(PIN_2);
-  Serial.println(state);
+//  Serial.println(state);
   switch (state) {
     case IDLE: {
         if (!in_welcome) {
@@ -304,10 +299,10 @@ void loop() {
           in_welcome = false;
           if (toggle_state == 0) {
 //            register_prompt();
-            tft.fillScreen(TFT_BLACK);
-            tft.println("Press button to record name");
-            state = RECORD_NAME;
-//            state = REGISTER; UNCOMMENT ME
+//            tft.fillScreen(TFT_BLACK);
+//            tft.println("Press button to record name");
+//            state = RECORD_NAME;
+            state = REGISTER; //UNCOMMENT ME
           } else if (toggle_state == 1) {
             state = TRACK;
           } else if (toggle_state == 2) {
@@ -399,11 +394,13 @@ void loop() {
             tft.drawString("Press button to record item's name", 0, 50, 1);
             state = RECORD_NAME;
           }
-          rerender();
+//          rerender();
 
-        } else if (toggleRes != 0 ) {
+        } else if (toggleRes == 1 ) {
           scrollPosition = (scrollPosition + 1) % (arrayPtr);
           rerender();
+        } else if (toggleRes == 2) {
+          state = IDLE;
         }
 
 //        if (BLEconnected == SUCCESS) {
@@ -419,14 +416,14 @@ void loop() {
       break;
     case RECORD_NAME: {
         int refreshOrSelectRes = refreshOrSelectButton.update1();
-        if (!button_state && button_state != old_button_state) {
+//        if (resfreshOrSelectRes != 0) {
           handle_record();
           state = NAME_VERIFY;
           tft.fillScreen(TFT_BLACK);
           tft.drawString("Is", 0, 10, 1);
           tft.drawString(temp_transcript, 0, 20, 1);
           tft.drawString("correct?", 0, 30, 1);
-        }
+//        }
       }
       break;
 
@@ -460,13 +457,13 @@ void loop() {
         int refreshOrSelectRes = refreshOrSelectButton.update1();
         int toggleRes = toggleButton.update1();
   
-        if (!button_state && button_state != old_button_state) {
+//        if (!button_state && button_state != old_button_state) {
           handle_record();
           tft.fillScreen(TFT_BLACK);
           tft.drawString("Is", 0, 10, 1);
           tft.drawString(temp_transcript, 0, 20, 1);
           tft.drawString("correct?", 0, 30, 1);
-        }
+//        }
   
         // no description
         if (toggleRes == SHORTPRESS) {
@@ -569,9 +566,12 @@ void loop() {
                 Serial.print("Set changed");
               }
       
-        } else if (toggleRes != 0 ) {
+        } else if (toggleRes == 1 ) {
           scrollPosition = (scrollPosition + 1) % (arrayPtr);
           rerender();
+        } else if (toggleRes == 2) {
+          tracking = false;
+          state = IDLE;
         }
       
         if (beep) {
