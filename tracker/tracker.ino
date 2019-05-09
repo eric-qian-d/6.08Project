@@ -134,9 +134,12 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
       char deviceName[100];
       strcpy(deviceName, advertisedDevice.getName().c_str());
       strcpy(deviceDesc, advertisedDevice.getManufacturerData().c_str());
+      char test[100];
+      strcpy(test, "4fafc201-1fb5-459e-8fcc-c5c9c331914b");
       Serial.println(deviceName);
       if (!tracking) {
-        if ((7<= strlen(deviceName)) && (strncmp(manufactureDesc, deviceName, 7) == 0)) {
+        if (advertisedDevice.haveServiceUUID() && strcmp(advertisedDevice.getServiceUUID().toString().c_str(), test) == 0) {
+//        if ((7<= strlen(deviceName)) && (strncmp(manufactureDesc, deviceName, 7) == 0)) {
           Serial.println("GREAAT SUCESS PAIRING");
           if (arrayPtr < 4) {
             devices[arrayPtr] = new BLEAdvertisedDevice(advertisedDevice);
@@ -144,12 +147,15 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
           }
         }
       } else  {
-        if ((7<= strlen(deviceName)) && (strncmp(manufactureDesc, deviceName, 7) == 0)) {
+          if (advertisedDevice.haveServiceUUID() && strcmp(advertisedDevice.getServiceUUID().toString().c_str(), test) == 0) {
+//        if ((7<= strlen(deviceName)) && (strncmp(manufactureDesc, deviceName, 7) == 0)) {
           for(int i = 0; i < prevPairedPtr; i++) {
             if (strcmp(deviceName, prevPairedId[i]) == 0) {
               if (arrayPtr < 4) {
+                
                 devices[arrayPtr] = new BLEAdvertisedDevice(advertisedDevice);
                 strcpy(prevPairedSyncName[arrayPtr], prevPairedName[i]);
+                Serial.println(prevPairedSyncName[arrayPtr]);
                 arrayPtr++;
               }
             }
