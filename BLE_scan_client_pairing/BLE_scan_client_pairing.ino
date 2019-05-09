@@ -189,8 +189,8 @@ void setup() {
   pBLEScan->setWindow(99);  // less or equal setInterval value
   lastButtonPress = millis();
   scrollPosition = 0;
-  pinMode(togglePin, INPUT_PULLUP);
-  pinMode(refreshOrSelectPin, INPUT_PULLUP);
+//  pinMode(togglePin, INPUT_PULLUP);
+//  pinMode(refreshOrSelectPin, INPUT_PULLUP);
   strcpy(manufactureDesc, "MYESP32");
 }
 

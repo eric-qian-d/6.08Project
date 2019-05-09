@@ -99,6 +99,8 @@ WiFiClientSecure client; //global WiFiClient Secure object
 boolean in_welcome;
 char select_char[] = "-"; // selection indicator variable
 char uuid[400]; // stores uuid
+char prevPaired[5][15]; //tracks what things have been paired 
+char prevPairedSyncName[5][15];
 
 static BLEUUID TRACK_SERVICE_UUID("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
 static BLEUUID TRACK_CHARACTERISTIC_UUID("beb5483e-36e1-4688-b7f5-ea07361b26a8");
@@ -111,6 +113,7 @@ int togglePin = 5;
 int lastButtonPress;
 int scrollPosition;
 int arrayPtr = 0;
+int prevPairedPtr = 0;
 char manufactureDesc[15];
 bool paired = false;
 bool connected = false;
@@ -131,16 +134,38 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
       char deviceDesc[100];
       char deviceName[100];
       strcpy(deviceName, advertisedDevice.getName().c_str());
-      //TODO: NO LONGER SETTING MAN DATA - NEED TO FIGURE OUT HOW TO IDENTIFY OUR DEVICES
       strcpy(deviceDesc, advertisedDevice.getManufacturerData().c_str());
       Serial.println(deviceName);
-      if ((7<= strlen(deviceName)) && (strncmp(manufactureDesc, deviceName, 7) == 0)) {
-        Serial.println("GREAAT SUCESS");
-        if (arrayPtr < 4) {
-          devices[arrayPtr] = new BLEAdvertisedDevice(advertisedDevice);
-          arrayPtr++;
+      if (!tracking) {
+        if ((7<= strlen(deviceName)) && (strncmp(manufactureDesc, deviceName, 7) == 0)) {
+          Serial.println("GREAAT SUCESS");
+          if (arrayPtr < 4) {
+            devices[arrayPtr] = new BLEAdvertisedDevice(advertisedDevice);
+            arrayPtr++;
+          }
+        }
+      } else  {
+        if ((7<= strlen(deviceName)) && (strncmp(manufactureDesc, deviceName, 7) == 0)) {
+          for(int i = 0; i < prevPairedPtr; i++) {
+            if (strcmp(deviceName, prevPaired[prevPairedPtr]) == 0) {
+              if (arrayPtr < 4) {
+                devices[arrayPtr] = new BLEAdvertisedDevice(advertisedDevice);
+                strcpy(prevPairedSyncName[arrayPtr], prevPaired[prevPairedPtr]);
+                arrayPtr++;
+              }
+            }
+          }
+
+
+          
+          Serial.println("GREAAT SUCESS");
+          if (arrayPtr < 4) {
+            devices[arrayPtr] = new BLEAdvertisedDevice(advertisedDevice);
+            arrayPtr++;
+          }
         }
       }
+        
     }
 };
 
@@ -148,7 +173,12 @@ void rerender() {
   tft.fillScreen(TFT_BLACK); //fill background
   for(int i = 0; i < arrayPtr; i++) {
     char deviceName[20];
-    strcpy(deviceName, devices[i]->getName().c_str());
+    if (rerender) {
+      strcpy(deviceName, prevPairedSyncName[i]);
+    } else {
+      strcpy(deviceName, devices[i]->getName().c_str());
+    }
+    
     tft.drawString(deviceName, 10, 10 * i, 1);
     if (i == scrollPosition) {
       tft.drawString(">", 0, 10*i, 1);
@@ -253,6 +283,7 @@ void register_prompt() {
   tft.fillScreen(TFT_BLACK); //fill background
   tft.drawString("Registering: place", 0, 50, 1);
   tft.drawString("your item next to me!", 0, 60, 1);
+  tft.drawString("Long hold to scan (5s)", 0, 70, 1);
 }
 
 void view_registered() {
@@ -316,11 +347,11 @@ void loop() {
         } else if (toggle == LONGPRESS) {
           in_welcome = false;
           if (toggle_state == 0) {
-            //register_prompt();//UNCOMMENT ME
-            tft.fillScreen(TFT_BLACK);
-            tft.println("Press button to record name");
-            state = RECORD_NAME;
-            // state = REGISTER; //UNCOMMENT ME
+            register_prompt();//UNCOMMENT ME
+//            tft.fillScreen(TFT_BLACK);
+//            tft.println("Press button to record name");
+//            state = RECORD_NAME;
+             state = REGISTER; //UNCOMMENT ME
           } else if (toggle_state == 1) {
             view_recommendations();
             state = RECOMMENDATION;
@@ -404,7 +435,6 @@ void loop() {
           if (yes != 0) {
             pRemoteCharacteristic->writeValue("false", false);
             strcpy(name, myDevice->getName().c_str());
-//            Serial.println("SUCCESSFULLY PAIRED!");
             pClient -> disconnect();
             tft.fillScreen(TFT_BLACK);
             tft.drawString("Success!", 0, 50, 1);
@@ -538,6 +568,7 @@ void loop() {
       break;
     case TRACK:
       {
+        tracking = true;
         int refreshOrSelectRes = refreshOrSelectButton.update1();
         int toggleRes = toggleButton.update1();
       //  Serial.print(refreshOrSelectRes);
