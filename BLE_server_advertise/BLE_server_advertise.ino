@@ -148,11 +148,13 @@ void loop() {
   if(paired) {
     Serial.println("being paired");
     digitalWrite(ledPin, HIGH);
+    delay(500);
     ledcWriteTone(0,800);
   } else if(tracked && !connected) {
     Serial.println("we have an issue");
     //code for tracking 
     digitalWrite(ledPin, HIGH);
+    delay(500);
     ledcWriteTone(0,800);
   } else {
     digitalWrite(ledPin, LOW);
