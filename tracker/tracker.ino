@@ -645,6 +645,7 @@ void loop() {
           rerender();
         } else if (toggleRes == 2) {
           tracking = false;
+          beep = false;
           state = IDLE;
         }
       
