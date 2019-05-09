@@ -18,7 +18,9 @@
 #define SELECTION_MENU 7
 #define RECORD_DESCRIPTION 5
 #define DESCRIPTION_VERIFY 6
-#define TRACK 7
+#define RECOMMENDATION 8
+#define TRACK 9
+
 
 #define SHORTPRESS 1
 #define LONGPRESS 2
@@ -266,6 +268,22 @@ void view_registered() {
   tft.println(item_response_buffer);
 }
 
+
+
+void view_recommendations() {
+  // TO BE CHANGED, right now just displays all registered items
+  tft.fillScreen(TFT_BLACK); //fill background
+  char item_response_buffer[OUT_BUFFER_SIZE];
+  char item_request_buffer[IN_BUFFER_SIZE];
+  sprintf(item_request_buffer, "GET http://608dev.net/sandbox/sc/lyy/new_test.py HTTP/1.1\r\n");
+  strcat(item_request_buffer, "Host: 608dev.net\r\n");
+  strcat(item_request_buffer, "\r\n"); //new line from header to body
+  do_http_request("608dev.net", item_request_buffer, item_response_buffer, 50, RESPONSE_TIMEOUT, true);
+  tft.setCursor(0, 10, 1); // set the cursor
+  tft.println("Recommended items:");
+  tft.println(item_response_buffer);
+}
+
 void show_selection_menu() {
   toggle_selection = 0;
   tft.fillScreen(TFT_BLACK); //fill background
@@ -304,7 +322,8 @@ void loop() {
             state = RECORD_NAME;
             // state = REGISTER; //UNCOMMENT ME
           } else if (toggle_state == 1) {
-            state = TRACK;
+            view_recommendations();
+            state = RECOMMENDATION;
           } else if (toggle_state == 2) {
             view_registered();
             state = VIEW_REGISTERED;
@@ -505,6 +524,15 @@ void loop() {
           memset(name_transcript, 0, strlen(name_transcript));
           memset(description_transcript, 0, strlen(description_transcript));
           state = IDLE;
+        }
+      }
+      break;
+    case RECOMMENDATION:
+      {
+        toggle = refreshOrSelectButton.update1();
+        if (toggle == SHORTPRESS) {
+          tft.fillScreen(TFT_BLACK);
+          state = TRACK;
         }
       }
       break;
