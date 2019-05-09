@@ -172,6 +172,8 @@ void rerender() {
   tft.fillScreen(TFT_BLACK); //fill background
   for(int i = 0; i < arrayPtr; i++) {
     char deviceName[20];
+    Serial.println("tracking");
+    Serial.println(tracking);
     if (tracking) {
       strcpy(deviceName, prevPairedSyncName[i]);
     } else {
