@@ -146,10 +146,10 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
       } else  {
         if ((7<= strlen(deviceName)) && (strncmp(manufactureDesc, deviceName, 7) == 0)) {
           for(int i = 0; i < prevPairedPtr; i++) {
-            if (strcmp(deviceName, prevPairedId[prevPairedPtr]) == 0) {
+            if (strcmp(deviceName, prevPairedId[i]) == 0) {
               if (arrayPtr < 4) {
                 devices[arrayPtr] = new BLEAdvertisedDevice(advertisedDevice);
-                strcpy(prevPairedSyncName[arrayPtr], prevPairedName[prevPairedPtr]);
+                strcpy(prevPairedSyncName[arrayPtr], prevPairedName[i]);
                 arrayPtr++;
               }
             }
@@ -310,6 +310,47 @@ void show_selection_menu() {
   tft.setCursor(2, 10, 1); // set the cursor
   tft.println("Select item to track:");
   tft.println(item_response_buffer);
+}
+
+void load_paired_items() {
+  Serial.println("HELLOHELLO");
+  char item_response_buffer[OUT_BUFFER_SIZE];
+  char item_request_buffer[IN_BUFFER_SIZE];
+  sprintf(item_request_buffer, "GET http://608dev.net/sandbox/sc/lyy/new_test.py?return_name_id=1 HTTP/1.1\r\n");
+  strcat(item_request_buffer, "Host: 608dev.net\r\n");
+  strcat(item_request_buffer, "\r\n"); //new line from header to body
+  do_http_request("608dev.net", item_request_buffer, item_response_buffer, 50, RESPONSE_TIMEOUT, true);
+  
+  char * ptr;
+//  Serial.println("HELLOHELLO");
+//  Serial.println(item_response_buffer);
+  ptr = strtok(item_response_buffer,"\n");
+//  Serial.print("I AM p
+  int index = 0;
+  while (ptr !=  NULL && strlen(ptr) >= 1)
+  {
+    strcpy(prevPairedName[index],ptr);
+    ptr = strtok(NULL,"\n");
+    strcpy(prevPairedId[index],ptr);
+    ptr = strtok(NULL, "\n");
+//    Serial.print("this is ptr:");
+    if (ptr == NULL) {
+      Serial.println("breaking");
+      break;
+    }
+//    Serial.println(ptr);
+//    Serial.println("hi");
+//    Serial.println(strlen(ptr));
+//    Serial.println("finished this iter");
+    index++;
+  }
+//  prevPairedName[index] = '\0';
+//  prevPairedId[index] = '\0';
+  Serial.println("-----");
+  for (int i = 0; i < 5; i++) {
+    Serial.println(prevPairedName[i]);
+    Serial.println(prevPairedId[i]);
+  }
 }
 
 void loop() {
@@ -544,10 +585,15 @@ void loop() {
         tracking = true;
         int refreshOrSelectRes = refreshOrSelectButton.update1();
         int toggleRes = toggleButton.update1();
+        for (int i = 0; i < 5; i++) {
+          memset(prevPairedId[i], 0, strlen(prevPairedId[i]));
+          memset(prevPairedName[i], 0, strlen(prevPairedName[i]));
+        }
       //  Serial.print(refreshOrSelectRes);
       //  Serial.println(toggleRes);
       
         if (refreshOrSelectRes == 2) {//refresh
+          load_paired_items();
           Serial.println("REFERESHING");
           arrayPtr = 0;
           BLEScanResults foundDevices = pBLEScan->start(5, false);
