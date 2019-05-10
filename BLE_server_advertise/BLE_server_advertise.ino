@@ -107,11 +107,11 @@ void setup() {
                                          BLECharacteristic::PROPERTY_READ |
                                          BLECharacteristic::PROPERTY_WRITE
                                        );
-
-  BLECharacteristic *pNameCharacteristic = pService->createCharacteristic(
-                                         PAIR_CHARACTERISTIC_UUID,
-                                         BLECharacteristic::PROPERTY_READ
-                                       );
+//
+//  BLECharacteristic *pNameCharacteristic = pService->createCharacteristic(
+//                                         PAIR_CHARACTERISTIC_UUID,
+//                                         BLECharacteristic::PROPERTY_READ
+//                                       );
 
   pTrackCharacteristic->setValue("For communicating tracking");
   pTrackCharacteristic->setCallbacks(new TrackWriteCB());
