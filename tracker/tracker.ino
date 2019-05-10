@@ -18,7 +18,7 @@
 #define SELECTION_MENU 7
 #define RECORD_DESCRIPTION 5
 #define DESCRIPTION_VERIFY 6
-#define TRACK 7
+#define TRACK 8
 
 #define SHORTPRESS 1
 #define LONGPRESS 2
@@ -96,15 +96,13 @@ WiFiClientSecure client; //global WiFiClient Secure object
 
 boolean in_welcome;
 char select_char[] = "-"; // selection indicator variable
-char uuid[400]; // stores uuid
+char address[400]; // stores uuid
 char prevPairedId[5][15]; //tracks what things have been paired 
 char prevPairedName[5][15]; //tracks what things have been paired 
 char prevPairedSyncName[5][15];
 
-static BLEUUID TRACK_SERVICE_UUID("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
+static BLEUUID SERVICE_UUID("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
 static BLEUUID TRACK_CHARACTERISTIC_UUID("beb5483e-36e1-4688-b7f5-ea07361b26a8");
-
-static BLEUUID PAIR_SERVICE_UUID("3fafc201-1fb5-459e-8fcc-c5c9c331914c");
 static BLEUUID PAIR_CHARACTERISTIC_UUID("ceb5483e-36e1-4688-b7f5-ea07361b26a3");
 
 int refreshOrSelectPin = 16;
@@ -130,13 +128,10 @@ BLEScan* pBLEScan;;
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
     void onResult(BLEAdvertisedDevice advertisedDevice) {
       Serial.println(advertisedDevice.toString().c_str());
-      char deviceDesc[100];
-      char deviceName[100];
-      strcpy(deviceName, advertisedDevice.getName().c_str());
-      strcpy(deviceDesc, advertisedDevice.getManufacturerData().c_str());
+      char deviceAddress[100];
+      strcpy(deviceAddress, advertisedDevice.getAddress().toString().c_str());
       char test[100];
       strcpy(test, "4fafc201-1fb5-459e-8fcc-c5c9c331914b");
-      Serial.println(deviceName);
       if (!tracking) {
         if (advertisedDevice.haveServiceUUID() && strcmp(advertisedDevice.getServiceUUID().toString().c_str(), test) == 0) {
 //        if ((7<= strlen(deviceName)) && (strncmp(manufactureDesc, deviceName, 7) == 0)) {
@@ -150,7 +145,7 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
           if (advertisedDevice.haveServiceUUID() && strcmp(advertisedDevice.getServiceUUID().toString().c_str(), test) == 0) {
 //        if ((7<= strlen(deviceName)) && (strncmp(manufactureDesc, deviceName, 7) == 0)) {
           for(int i = 0; i < prevPairedPtr; i++) {
-            if (strcmp(deviceName, prevPairedId[i]) == 0) {
+            if (strcmp(deviceAddress, prevPairedId[i]) == 0) {
               if (arrayPtr < 4) {
                 
                 devices[arrayPtr] = new BLEAdvertisedDevice(advertisedDevice);
@@ -181,7 +176,8 @@ void rerender() {
     Serial.println("tracking");
     Serial.println(tracking);
     if (tracking) {
-      strcpy(deviceName, prevPairedSyncName[i]);
+      //strcpy(deviceName, prevPairedSyncName[i]);
+      strcpy(deviceName, devices[i]->getName().c_str());
     } else {
       strcpy(deviceName, devices[i]->getName().c_str());
     }
@@ -238,7 +234,6 @@ void setup() {
     Serial.println("Failed to Connect :/  Going to restart");
     Serial.println(WiFi.status());
     ESP.restart(); // restart the ESP (proper way)
-
   }
 
   analogSetAttenuation(ADC_6db); //set to 6dB attenuation for 3.3V full scale reading.
@@ -429,11 +424,11 @@ void loop() {
           Serial.println("ready to connect");
           pClient->connect(myDevice);  // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
           Serial.println(" - Connected to server");
-          strcpy(uuid, myDevice->getServiceUUID().toString().c_str());
+          strcpy(address, myDevice->getAddress().toString().c_str());
           paired = true;
 
           // Obtain a reference to the service we are after in the remote BLE server.
-          BLERemoteService* pRemoteService = pClient->getService(PAIR_SERVICE_UUID);
+          BLERemoteService* pRemoteService = pClient->getService(SERVICE_UUID);
           if (pRemoteService == nullptr) {
             Serial.print("Failed to find our service UUID: ");
             pClient->disconnect();
@@ -566,7 +561,7 @@ void loop() {
           strcpy(description_transcript, temp_transcript);
           // post request to server
           char body[200]; //for body;
-          sprintf(body, "id=%s&name=%s&description=%s", uuid , name_transcript, description_transcript); //generate body, posting to User, 1 step
+          sprintf(body, "id=%s&name=%s&description=%s", address , name_transcript, description_transcript); //generate body, posting to User, 1 step
           int body_len = strlen(body); //calculate body length (for header reporting)
           sprintf(request_buffer, "POST http://608dev.net/sandbox/sc/lyy/new_test.py HTTP/1.1\r\n");
           strcat(request_buffer, "Host: 608dev.net\r\n");
@@ -622,11 +617,11 @@ void loop() {
           Serial.println("ready to connect");
           pClient->connect(myDevice);  // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
           Serial.println(" - Connected to server");
-          strcpy(uuid, myDevice->getServiceUUID().toString().c_str());
+          strcpy(address, myDevice->getAddress()toString().c_str());
           paired = true;
       
               // Obtain a reference to the service we are after in the remote BLE server.
-              BLERemoteService* pRemoteService = pClient->getService(TRACK_SERVICE_UUID);
+              BLERemoteService* pRemoteService = pClient->getService(SERVICE_UUID);
               if (pRemoteService == nullptr) {
                 Serial.print("Failed to find our service UUID: ");
                 pClient->disconnect();
