@@ -30,9 +30,9 @@
 TFT_eSPI tft = TFT_eSPI();
 
 
-char network[] = "MIT";
+char network[] = "6s08";
 
-char password[] = "";
+char password[] = "iesc6s08";
 
 const char USER[] = "jenning";
 
@@ -118,10 +118,12 @@ bool tracking = false;
 bool beep = false;
 char name[30];
 int buzzerPin = 22;
+bool connectSuccessful = false;
 
 Button refreshOrSelectButton(refreshOrSelectPin);
 Button toggleButton(togglePin);
 BLEAdvertisedDevice* devices[5]; // can have a list of 4 devices that are advertised at any given time
+
 
 BLEScan* pBLEScan;;
 
@@ -168,8 +170,8 @@ void rerender() {
   tft.fillScreen(TFT_BLACK); //fill background
   for(int i = 0; i < arrayPtr; i++) {
     char deviceName[20];
-    Serial.println("tracking");
-    Serial.println(tracking);
+//    Serial.print("tracking:");
+//    Serial.println(tracking);
     if (tracking) { 
       strcpy(deviceName, prevPairedName[i]);
 //      strcpy(deviceName, devices[i]->getName().c_str());
@@ -196,6 +198,9 @@ class MyClientCallback : public BLEClientCallbacks {
   void onDisconnect(BLEClient* pclient) {
     connected = false;
     Serial.println("onDisconnect");
+    Serial.println(tracking);
+    Serial.print("connectSuccessful");
+    
     if (tracking) {
       beep = true;
     }
@@ -349,7 +354,7 @@ void load_paired_items() {
 void loop() {
   button_state = digitalRead(PIN_1);
   button_state2 = digitalRead(PIN_2);
-  Serial.println(state);
+//  Serial.println(state);
   switch (state) {
     case IDLE: {
         if (!in_welcome) {
@@ -396,7 +401,7 @@ void loop() {
         if (refreshOrSelectRes == 2) {//refresh
           Serial.println("REFERESHING");
           arrayPtr = 0;
-          BLEScanResults foundDevices = pBLEScan->start(5, false);
+          BLEScanResults foundDevices = pBLEScan->start(2, false);
           delay(5000);//wait for scan to terminate
           pBLEScan->clearResults();   // delete results fromBLEScan buffer to release memory
           rerender();
@@ -459,7 +464,7 @@ void loop() {
             tft.drawString("Press button to record item's name", 0, 50, 1);
             state = RECORD_NAME;
           }
-//          rerender();
+          rerender();
 
         } else if (toggleRes == 1 ) {
           scrollPosition = (scrollPosition + 1) % (arrayPtr);
@@ -580,10 +585,10 @@ void loop() {
           return;
         }
         
-        for (int i = 0; i < 5; i++) {
-          memset(prevPairedId[i], 0, strlen(prevPairedId[i]));
-          memset(prevPairedName[i], 0, strlen(prevPairedName[i]));
-        }
+//        for (int i = 0; i < 5; i++) {
+//          memset(prevPairedId[i], 0, strlen(prevPairedId[i]));
+//          memset(prevPairedName[i], 0, strlen(prevPairedName[i]));
+//        }
       //  Serial.print(refreshOrSelectRes);
       //  Serial.println(toggleRes);
       
@@ -591,7 +596,7 @@ void loop() {
           load_paired_items();
           Serial.println("REFERESHING");
           arrayPtr = 0;
-          BLEScanResults foundDevices = pBLEScan->start(5, false);
+          BLEScanResults foundDevices = pBLEScan->start(2, false);
           delay(5000);//wait for scan to terminate
           pBLEScan->clearResults();   // delete results fromBLEScan buffer to release memory
           rerender();
@@ -607,7 +612,7 @@ void loop() {
           pClient->setClientCallbacks(new MyClientCallback());
           
           Serial.println("ready to connect");
-          pClient->connect(myDevice);  // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
+          connectSuccessful = pClient->connect(myDevice);  // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
           Serial.println(" - Connected to server");
           strcpy(address, myDevice->getAddress().toString().c_str());
           paired = true;
