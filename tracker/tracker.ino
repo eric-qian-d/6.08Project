@@ -134,7 +134,6 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
       strcpy(test, "4fafc201-1fb5-459e-8fcc-c5c9c331914b");
       if (!tracking) {
         if (advertisedDevice.haveServiceUUID() && strcmp(advertisedDevice.getServiceUUID().toString().c_str(), test) == 0) {
-//        if ((7<= strlen(deviceName)) && (strncmp(manufactureDesc, deviceName, 7) == 0)) {
           Serial.println("GREAAT SUCESS PAIRING");
           if (arrayPtr < 4) {
             devices[arrayPtr] = new BLEAdvertisedDevice(advertisedDevice);
@@ -143,7 +142,6 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
         }
       } else  {
           if (advertisedDevice.haveServiceUUID() && strcmp(advertisedDevice.getServiceUUID().toString().c_str(), test) == 0) {
-//        if ((7<= strlen(deviceName)) && (strncmp(manufactureDesc, deviceName, 7) == 0)) {
           for(int i = 0; i < prevPairedPtr; i++) {
             if (strcmp(deviceAddress, prevPairedId[i]) == 0) {
               if (arrayPtr < 4) {
@@ -155,9 +153,6 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
               }
             }
           }
-
-
-          
           Serial.println("GREAAT SUCESS TRACKING");
           if (arrayPtr < 4) {
             devices[arrayPtr] = new BLEAdvertisedDevice(advertisedDevice);
@@ -317,7 +312,6 @@ void show_selection_menu() {
 }
 
 void load_paired_items() {
-  Serial.println("HELLOHELLO");
   char item_response_buffer[OUT_BUFFER_SIZE];
   char item_request_buffer[IN_BUFFER_SIZE];
   sprintf(item_request_buffer, "GET http://608dev.net/sandbox/sc/lyy/new_test.py?return_name_id=1 HTTP/1.1\r\n");
@@ -473,16 +467,6 @@ void loop() {
         } else if (toggleRes == 2) {
           state = IDLE;
         }
-
-//        if (BLEconnected == SUCCESS) {
-//          
-//        } else if (BLEconnected == FAIL) {
-//          timeout_timer = millis();
-//          tft.fillScreen(TFT_BLACK);
-//          tft.drawString("Failed. Module not found. :(", 0, 50, 1);
-//          while (millis() - timeout_timer < TIMEOUT_PERIOD);
-//          state = IDLE; // go back to IDLE
-//        }
       }
       break;
     case RECORD_NAME: {
