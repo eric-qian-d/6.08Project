@@ -175,10 +175,11 @@ void rerender() {
     char deviceName[20];
     Serial.println("tracking");
     Serial.println(tracking);
-    if (tracking) {
-      //strcpy(deviceName, prevPairedSyncName[i]);
-      strcpy(deviceName, devices[i]->getName().c_str());
+    if (tracking) { 
+      strcpy(deviceName, prevPairedName[i]);
+//      strcpy(deviceName, devices[i]->getName().c_str());
     } else {
+//      strcpy(deviceName, prevPairedName[i]);
       strcpy(deviceName, devices[i]->getName().c_str());
     }
     
@@ -325,30 +326,25 @@ void load_paired_items() {
   do_http_request("608dev.net", item_request_buffer, item_response_buffer, 50, RESPONSE_TIMEOUT, true);
   
   char * ptr;
-//  Serial.println("HELLOHELLO");
-//  Serial.println(item_response_buffer);
   ptr = strtok(item_response_buffer,"\n");
-//  Serial.print("I AM p
+
   int index = 0;
-  while (ptr !=  NULL && strlen(ptr) >= 1)
+  Serial.println("populating prevPaired");
+  while (ptr !=  NULL)
   {
     strcpy(prevPairedName[index],ptr);
     ptr = strtok(NULL,"\n");
     strcpy(prevPairedId[index],ptr);
     ptr = strtok(NULL, "\n");
-//    Serial.print("this is ptr:");
     if (ptr == NULL) {
       Serial.println("breaking");
       break;
     }
-//    Serial.println(ptr);
-//    Serial.println("hi");
-//    Serial.println(strlen(ptr));
-//    Serial.println("finished this iter");
+    Serial.println(prevPairedName[index]);
+    Serial.println(prevPairedName[index]);
     index++;
   }
-//  prevPairedName[index] = '\0';
-//  prevPairedId[index] = '\0';
+
   Serial.println("-----");
   for (int i = 0; i < 5; i++) {
     Serial.println(prevPairedName[i]);
@@ -359,7 +355,7 @@ void load_paired_items() {
 void loop() {
   button_state = digitalRead(PIN_1);
   button_state2 = digitalRead(PIN_2);
-//  Serial.println(state);
+  Serial.println(state);
   switch (state) {
     case IDLE: {
         if (!in_welcome) {
@@ -494,6 +490,7 @@ void loop() {
 //        if (resfreshOrSelectRes != 0) {
           handle_record();
           state = NAME_VERIFY;
+          Serial.println("transitioning to NAME_VERIFY");
           tft.fillScreen(TFT_BLACK);
           tft.drawString("Is", 0, 10, 1);
           tft.drawString(temp_transcript, 0, 20, 1);
@@ -511,14 +508,15 @@ void loop() {
         if (refreshOrSelectRes == SHORTPRESS) {
           memset(name_transcript, 0, strlen(name_transcript));
           tft.fillScreen(TFT_BLACK);
-          tft.drawString("Press button to record item's name", 0, 50, 1);
+          tft.drawString("Press button to record\n item's name", 0, 50, 1);
           state = RECORD_NAME;
+          Serial.println("transitioning to RECORD_NAME");
         }
         // accept the name
         if (toggleRes == SHORTPRESS) {
             tft.fillScreen(TFT_BLACK);
-            tft.drawString("Press button to record description",0,50,1);
-
+            tft.drawString("Press button to record\n description",0,50,1);
+            Serial.println("transitioning to RECORD_DESCRIPTION");
             memset(name_transcript, 0, strlen(name_transcript));
             strcpy(name_transcript, temp_transcript);
             memset(temp_transcript, 0, strlen(temp_transcript));
@@ -533,12 +531,13 @@ void loop() {
         int toggleRes = toggleButton.update1();
   
 //        if (!button_state && button_state != old_button_state) {
-          handle_record();
-          state = DESCRIPTION_VERIFY;
-          tft.fillScreen(TFT_BLACK);
-          tft.drawString("Is", 0, 10, 1);
-          tft.drawString(temp_transcript, 0, 20, 1);
-          tft.drawString("correct?", 0, 30, 1);
+        handle_record();
+        state = DESCRIPTION_VERIFY;
+        Serial.println("transitioning to DESCRIPTION_VERIFY");
+        tft.fillScreen(TFT_BLACK);
+        tft.drawString("Is", 0, 10, 1);
+        tft.drawString(temp_transcript, 0, 20, 1);
+        tft.drawString("correct?", 0, 30, 1);
 //        }
   
       }
@@ -553,7 +552,8 @@ void loop() {
         if (refreshOrSelectRes == SHORTPRESS) {
           memset(temp_transcript, 0, strlen(temp_transcript));
           tft.fillScreen(TFT_BLACK);
-          tft.drawString("Press button to record description", 0, 50, 1);
+          tft.drawString("Press button to record\n description", 0, 50, 1);
+          Serial.println("transitioning to RECORD_DESCRIPTION");
           state = RECORD_DESCRIPTION;
         }
         // accept the description
@@ -573,12 +573,12 @@ void loop() {
           Serial.println(request_buffer);
           do_http_request("608dev.net", request_buffer, response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
           //tft.println(response); //print the result
-  
           tft.fillScreen(TFT_BLACK);
           tft.drawString(name_transcript, 0, 10, 1);
           tft.drawString(" has been registered", 0, 20, 1);
           memset(name_transcript, 0, strlen(name_transcript));
           memset(description_transcript, 0, strlen(description_transcript));
+          Serial.println("SUCCESSFUL REGISTRATION");
           state = IDLE;
         }
       }
@@ -588,6 +588,14 @@ void loop() {
         tracking = true;
         int refreshOrSelectRes = refreshOrSelectButton.update1();
         int toggleRes = toggleButton.update1();
+        if (beep && toggleRes == 2) {
+          tracking = false;
+          beep = false;
+          ledcWrite(0,0);
+          state = IDLE;
+          return;
+        }
+        
         for (int i = 0; i < 5; i++) {
           memset(prevPairedId[i], 0, strlen(prevPairedId[i]));
           memset(prevPairedName[i], 0, strlen(prevPairedName[i]));
@@ -617,7 +625,7 @@ void loop() {
           Serial.println("ready to connect");
           pClient->connect(myDevice);  // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
           Serial.println(" - Connected to server");
-          strcpy(address, myDevice->getAddress()toString().c_str());
+          strcpy(address, myDevice->getAddress().toString().c_str());
           paired = true;
       
               // Obtain a reference to the service we are after in the remote BLE server.
@@ -646,11 +654,7 @@ void loop() {
         } else if (toggleRes == 1 ) {
           scrollPosition = (scrollPosition + 1) % (arrayPtr);
           rerender();
-        } else if (toggleRes == 2) {
-          tracking = false;
-          beep = false;
-          state = IDLE;
-        }
+        } 
       
         if (beep) {
           Serial.println("BEEEEEP");
