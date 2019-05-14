@@ -301,9 +301,38 @@ void view_registered() {
   tft.setCursor(0, 10, 1); // set the cursor
   tft.println("Registered items:");
   tft.println(item_response_buffer);
+  WiFi.mode(WIFI_OFF);
+}
+
+void connectWifi() {
+  WiFi.begin(network, password); //attempt to connect to wifi
+  uint8_t count = 0; //count used for Wifi check times
+  Serial.print("Attempting to connect to ");
+  Serial.println(network);
+  while (WiFi.status() != WL_CONNECTED && count < 12) {
+    delay(500);
+    Serial.print(".");
+    count++;
+  }
+  delay(2000);
+  if (WiFi.isConnected()) { //if we connected then print our IP, Mac, and SSID we're on
+    Serial.println("CONNECTED!");
+    Serial.println(WiFi.localIP().toString() + " (" + WiFi.macAddress() + ") (" + WiFi.SSID() + ")");
+    delay(500);
+
+  } else { //if we failed to connect just Try again.
+    Serial.println("Failed to Connect :/  Going to restart");
+    Serial.println(WiFi.status());
+    ESP.restart(); // restart the ESP (proper way)
+  }
+}
+
+void disconnectWifi() {
+  WiFi.mode(WIFI_OFF);
 }
 
 void show_selection_menu() {
+  connectWifi();
   toggle_selection = 0;
   tft.fillScreen(TFT_BLACK); //fill background
   char item_response_buffer[OUT_BUFFER_SIZE];
@@ -315,9 +344,31 @@ void show_selection_menu() {
   tft.setCursor(2, 10, 1); // set the cursor
   tft.println("Select item to track:");
   tft.println(item_response_buffer);
+  disconnectWifi();
 }
 
 void load_paired_items() {
+  connectWifi();
+  WiFi.begin(network, password); //attempt to connect to wifi
+  uint8_t count = 0; //count used for Wifi check times
+  Serial.print("Attempting to connect to ");
+  Serial.println(network);
+  while (WiFi.status() != WL_CONNECTED && count < 12) {
+    delay(500);
+    Serial.print(".");
+    count++;
+  }
+  delay(2000);
+  if (WiFi.isConnected()) { //if we connected then print our IP, Mac, and SSID we're on
+    Serial.println("CONNECTED!");
+    Serial.println(WiFi.localIP().toString() + " (" + WiFi.macAddress() + ") (" + WiFi.SSID() + ")");
+    delay(500);
+
+  } else { //if we failed to connect just Try again.
+    Serial.println("Failed to Connect :/  Going to restart");
+    Serial.println(WiFi.status());
+    ESP.restart(); // restart the ESP (proper way)
+  }
   char item_response_buffer[OUT_BUFFER_SIZE];
   char item_request_buffer[IN_BUFFER_SIZE];
   sprintf(item_request_buffer, "GET http://608dev.net/sandbox/sc/lyy/new_test.py?return_name_id=1 HTTP/1.1\r\n");
@@ -350,6 +401,8 @@ void load_paired_items() {
     Serial.println(prevPairedName[i]);
     Serial.println(prevPairedId[i]);
   }
+  disconnectWifi();
+  
 }
 
 void loop() {
@@ -464,6 +517,7 @@ void loop() {
             tft.fillScreen(TFT_BLACK);
             tft.drawString("Press button to record item's name", 0, 50, 1);
             state = RECORD_NAME;
+            connectWifi();
           }
           if(pRemoteCharacteristic->canWrite()) {
             pRemoteCharacteristic->writeValue("false", false);
@@ -575,6 +629,7 @@ void loop() {
           memset(description_transcript, 0, strlen(description_transcript));
           Serial.println("SUCCESSFUL REGISTRATION");
           state = IDLE;
+          disconnectWifi();
         }
       }
       break;
