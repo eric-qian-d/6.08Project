@@ -19,6 +19,7 @@
 #define RECORD_DESCRIPTION 5
 #define DESCRIPTION_VERIFY 6
 #define TRACK 8
+#define RECOMMENDATIONS 9
 
 #define SHORTPRESS 1
 #define LONGPRESS 2
@@ -200,8 +201,10 @@ class MyClientCallback : public BLEClientCallbacks {
     Serial.println("onDisconnect");
     Serial.println(tracking);
     Serial.print("connectSuccessful");
-    
+
     if (tracking) {
+      tft.fillScreen(TFT_BLACK);
+      tft.drawString("Connection lost!\nPress right button to exit.", 0, 50, 1);
       beep = true;
     }
   }
@@ -274,7 +277,7 @@ void welcome() {
   tft.drawString("Track items", 10, 20, 1);
   tft.drawString("View registered", 10, 30, 1);
   tft.drawString("items", 10, 40, 1);
-  tft.drawString(select_char, 2, 10, 1);
+  tft.drawString(select_char, 2, (toggle_state+1)*10, 1);
 
   // fetch weather data
 
@@ -299,6 +302,19 @@ void view_registered() {
   do_http_request("608dev.net", item_request_buffer, item_response_buffer, 50, RESPONSE_TIMEOUT, true);
   tft.setCursor(0, 10, 1); // set the cursor
   tft.println("Registered items:");
+  tft.println(item_response_buffer);
+}
+
+void view_recommendations() {
+  tft.fillScreen(TFT_BLACK); //fill background
+  char item_response_buffer[OUT_BUFFER_SIZE];
+  char item_request_buffer[IN_BUFFER_SIZE];
+  sprintf(item_request_buffer, "GET http://608dev.net/sandbox/sc/lyy/new_test.py HTTP/1.1\r\n");
+  strcat(item_request_buffer, "Host: 608dev.net\r\n");
+  strcat(item_request_buffer, "\r\n"); //new line from header to body
+  do_http_request("608dev.net", item_request_buffer, item_response_buffer, 50, RESPONSE_TIMEOUT, true);
+  tft.setCursor(0, 10, 1); // set the cursor
+  tft.println("Recommended items:");
   tft.println(item_response_buffer);
 }
 
@@ -375,7 +391,8 @@ void loop() {
 //            state = RECORD_NAME;
              state = REGISTER; //UNCOMMENT ME
           } else if (toggle_state == 1) {
-            state = TRACK;
+            view_recommendations();
+            state = RECOMMENDATIONS;
           } else if (toggle_state == 2) {
             view_registered();
             state = VIEW_REGISTERED;
@@ -573,6 +590,16 @@ void loop() {
         }
       }
       break;
+    case RECOMMENDATIONS:
+      {
+        toggle = refreshOrSelectButton.update1();
+        Serial.println(toggle);
+        if (toggle == SHORTPRESS) {
+          tft.fillScreen(TFT_BLACK);
+          tft.drawString("Long hold left button to load", 0, 20, 1);
+          state = TRACK;
+        }
+      }
     case TRACK:
       {
         tracking = true;
@@ -596,10 +623,13 @@ void loop() {
         if (refreshOrSelectRes == 2) {//refresh
           load_paired_items();
           Serial.println("REFERESHING");
+          tft.fillScreen(TFT_BLACK);
+          tft.drawString("Loading items", 0, 50, 1);
           arrayPtr = 0;
           BLEScanResults foundDevices = pBLEScan->start(2, false);
           delay(5000);//wait for scan to terminate
           pBLEScan->clearResults();   // delete results fromBLEScan buffer to release memory
+          
           rerender();
       
         } else if (refreshOrSelectRes == 1) {//select the current
@@ -648,10 +678,10 @@ void loop() {
       
         if (beep) {
           Serial.println("BEEEEEP");
-          digitalWrite(buzzerPin, HIGH);
-          ledcWriteTone(0,800);
+          ledcWriteTone(0,1200);
           ledcWriteNote(0,NOTE_C,1);
           delay(500);
+          
         }
       }
   }
