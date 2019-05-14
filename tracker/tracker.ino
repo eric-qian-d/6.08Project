@@ -147,7 +147,7 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
           for(int i = 0; i < prevPairedPtr; i++) {
             if (strcmp(deviceAddress, prevPairedId[i]) == 0) {
               if (arrayPtr < 4) {
-                
+                Serial.println("WE FOUND A REGISTERED DEVICE");
                 devices[arrayPtr] = new BLEAdvertisedDevice(advertisedDevice);
                 strcpy(prevPairedSyncName[arrayPtr], prevPairedName[i]);
                 Serial.println(prevPairedSyncName[arrayPtr]);
@@ -155,11 +155,12 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
               }
             }
           }
+          Serial.println(arrayPtr);
           Serial.println("GREAAT SUCESS TRACKING");
-          if (arrayPtr < 4) {
-            devices[arrayPtr] = new BLEAdvertisedDevice(advertisedDevice);
-            arrayPtr++;
-          }
+//          if (arrayPtr < 4) {
+//            devices[arrayPtr] = new BLEAdvertisedDevice(advertisedDevice);
+//            arrayPtr++;
+//          }
         }
       }
         
@@ -168,10 +169,10 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 
 void rerender() {
   tft.fillScreen(TFT_BLACK); //fill background
+  Serial.println("IN RERENDR");
+  Serial.println(arrayPtr);
   for(int i = 0; i < arrayPtr; i++) {
     char deviceName[20];
-//    Serial.print("tracking:");
-//    Serial.println(tracking);
     if (tracking) { 
       strcpy(deviceName, prevPairedName[i]);
 //      strcpy(deviceName, devices[i]->getName().c_str());
