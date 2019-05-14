@@ -16,16 +16,15 @@ int man_code = 0x02E5;
 // See the following for generating UUIDs:
 // https://www.uuidgenerator.net/
 
-static BLEUUID TRACK_SERVICE_UUID("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
+static BLEUUID SERVICE_UUID("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
 static BLEUUID TRACK_CHARACTERISTIC_UUID("beb5483e-36e1-4688-b7f5-ea07361b26a8");
-
-static BLEUUID PAIR_SERVICE_UUID("3fafc201-1fb5-459e-8fcc-c5c9c331914c");
 static BLEUUID PAIR_CHARACTERISTIC_UUID("ceb5483e-36e1-4688-b7f5-ea07361b26a3");
+static BLEUUID NAME_CHARACTERISTIC_UUID("deb5483e-36e1-4688-b7f5-ea07361b26a3");
 
 BLEAdvertising *pAdvertising;
 BLEAdvertisementData advert;
 
-int ledPin = 19;
+int ledPin = 12;
 boolean tracked = false;
 boolean paired = false;
 boolean connected = false;
@@ -93,21 +92,26 @@ void setup() {
   Serial.begin(115200);
   Serial.println("Starting BLE work!");
 
-  BLEDevice::init("MYESP32A");
+  BLEDevice::init("MYESP32");
   BLEServer *pServer = BLEDevice::createServer();
-  BLEService *pTrackService = pServer->createService(TRACK_SERVICE_UUID);
-  BLECharacteristic *pTrackCharacteristic = pTrackService->createCharacteristic(
+  BLEService *pService = pServer->createService(SERVICE_UUID);
+  BLECharacteristic *pTrackCharacteristic = pService->createCharacteristic(
                                          TRACK_CHARACTERISTIC_UUID,
                                          BLECharacteristic::PROPERTY_READ |
                                          BLECharacteristic::PROPERTY_WRITE
                                        );
 
-  BLEService *pPairService = pServer->createService(PAIR_SERVICE_UUID);
-  BLECharacteristic *pPairCharacteristic = pPairService->createCharacteristic(
+  
+  BLECharacteristic *pPairCharacteristic = pService->createCharacteristic(
                                          PAIR_CHARACTERISTIC_UUID,
                                          BLECharacteristic::PROPERTY_READ |
                                          BLECharacteristic::PROPERTY_WRITE
                                        );
+//
+//  BLECharacteristic *pNameCharacteristic = pService->createCharacteristic(
+//                                         PAIR_CHARACTERISTIC_UUID,
+//                                         BLECharacteristic::PROPERTY_READ
+//                                       );
 
   pTrackCharacteristic->setValue("For communicating tracking");
   pTrackCharacteristic->setCallbacks(new TrackWriteCB());
@@ -115,14 +119,15 @@ void setup() {
   pPairCharacteristic->setValue("For pairing tracking");
   pPairCharacteristic->setCallbacks(new PairWriteCB());
 
+//  pNameCharacteristic->setValue("For device naming");
+  
   pServer->setCallbacks(new ConnectCB());
   
-  pTrackService->start();
-  pPairService->start();
+  pService->start();
+//  pPairService->start();
   
   pAdvertising = pServer->getAdvertising();
-  pAdvertising->addServiceUUID(TRACK_SERVICE_UUID);
-  pAdvertising->addServiceUUID(PAIR_SERVICE_UUID);
+  pAdvertising->addServiceUUID(SERVICE_UUID);
   pAdvertising->setScanResponse(true);
   pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue
   pAdvertising->setMinPreferred(0x12);
