@@ -30,9 +30,9 @@
 TFT_eSPI tft = TFT_eSPI();
 
 
-char network[] = "6s08";
+char network[] = "MIT";
 
-char password[] = "iesc6s08";
+char password[] = "";
 
 const char USER[] = "jenning";
 
@@ -455,7 +455,7 @@ void loop() {
   
           if (yes != 0) {
             pRemoteCharacteristic->writeValue("false", false);
-            strcpy(name, myDevice->getName().c_str());
+            strcpy(address, myDevice->getAddress().toString().c_str());
             pClient -> disconnect();
             tft.fillScreen(TFT_BLACK);
             tft.drawString("Success!", 0, 50, 1);
