@@ -177,7 +177,7 @@ void rerender() {
 //      strcpy(deviceName, devices[i]->getName().c_str());
     } else {
 //      strcpy(deviceName, prevPairedName[i]);
-      strcpy(deviceName, devices[i]->getName().c_str());
+      strcpy(deviceName, devices[i]->getAddress().toString().c_str());
     }
     
     tft.drawString(deviceName, 10, 10 * i, 1);
