@@ -464,6 +464,7 @@ void loop() {
             tft.drawString("Press button to record item's name", 0, 50, 1);
             state = RECORD_NAME;
           }
+          pClient->disconnect();
           rerender();
 
         } else if (toggleRes == 1 ) {
