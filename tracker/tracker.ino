@@ -178,7 +178,7 @@ void rerender() {
 //      strcpy(deviceName, devices[i]->getName().c_str());
     } else {
 //      strcpy(deviceName, prevPairedName[i]);
-      strcpy(deviceName, devices[i]->getName().c_str());
+      strcpy(deviceName, devices[i]->getAddress().toString().c_str());
     }
     
     tft.drawString(deviceName, 10, 10 * i, 1);
@@ -472,7 +472,7 @@ void loop() {
   
           if (yes != 0) {
             pRemoteCharacteristic->writeValue("false", false);
-            strcpy(name, myDevice->getName().c_str());
+            strcpy(address, myDevice->getAddress().toString().c_str());
             pClient -> disconnect();
             tft.fillScreen(TFT_BLACK);
             tft.drawString("Success!", 0, 50, 1);
