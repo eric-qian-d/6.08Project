@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "button.cpp"
+#include "pwm.cpp"
 
 #define IDLE 0
 #define REGISTER 1
@@ -48,6 +49,7 @@ const uint8_t PIN_2 = 5; //button 2
 
 uint32_t primary_timer;
 uint32_t timer;
+uint32_t last_pressed_timer;
 uint32_t timeout_timer;
 
 const uint8_t TIMEOUT_PERIOD = 2500; //milliseconds
@@ -58,6 +60,36 @@ uint8_t toggle_selection;
 uint8_t num_items;
 uint8_t state;
 uint8_t screen_color;
+
+/* PWM */
+PWM_608::PWM_608(int op, float frequency) {
+  pin = op;
+  digitalWrite(pin, 0);
+  period = (int) ((1000. / frequency));
+  set_duty_cycle(0);
+}
+
+void PWM_608::update() {
+  if (on_amt == 0) {
+    digitalWrite(pin, 0);
+  } else if (millis() % period < on_amt) {
+    digitalWrite(pin, 1);
+  } else if (millis() % period >= on_amt) {
+    digitalWrite(pin, 0);
+  }
+}
+void PWM_608::set_duty_cycle(float duty_cycle) {
+  if (duty_cycle < 0) {
+    duty_cycle = 0;
+  } else if (duty_cycle > 1) {
+    duty_cycle = 1;
+  }
+  on_amt = (int) (period * duty_cycle);
+  update();
+}
+
+PWM_608 backlight(12, 50); //create instance of PWM to control backlight on pin 12, operating at 50 Hz
+bool dim;
 
 /* MIC VARIABLES*/
 
@@ -97,8 +129,8 @@ WiFiClientSecure client; //global WiFiClient Secure object
 boolean in_welcome;
 char select_char[] = "-"; // selection indicator variable
 char address[400]; // stores uuid
-char prevPairedId[5][15]; //tracks what things have been paired 
-char prevPairedName[5][15]; //tracks what things have been paired 
+char prevPairedId[5][15]; //tracks what things have been paired
+char prevPairedName[5][15]; //tracks what things have been paired
 char prevPairedSyncName[5][15];
 
 static BLEUUID SERVICE_UUID("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
@@ -143,8 +175,8 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
           }
         }
       } else  {
-          if (advertisedDevice.haveServiceUUID() && strcmp(advertisedDevice.getServiceUUID().toString().c_str(), test) == 0) {
-          for(int i = 0; i < prevPairedPtr; i++) {
+        if (advertisedDevice.haveServiceUUID() && strcmp(advertisedDevice.getServiceUUID().toString().c_str(), test) == 0) {
+          for (int i = 0; i < prevPairedPtr; i++) {
             if (strcmp(deviceAddress, prevPairedId[i]) == 0) {
               if (arrayPtr < 4) {
                 Serial.println("WE FOUND A REGISTERED DEVICE");
@@ -157,13 +189,13 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
           }
           Serial.println(arrayPtr);
           Serial.println("GREAAT SUCESS TRACKING");
-//          if (arrayPtr < 4) {
-//            devices[arrayPtr] = new BLEAdvertisedDevice(advertisedDevice);
-//            arrayPtr++;
-//          }
+          //          if (arrayPtr < 4) {
+          //            devices[arrayPtr] = new BLEAdvertisedDevice(advertisedDevice);
+          //            arrayPtr++;
+          //          }
         }
       }
-        
+
     }
 };
 
@@ -171,19 +203,19 @@ void rerender() {
   tft.fillScreen(TFT_BLACK); //fill background
   Serial.println("IN RERENDR");
   Serial.println(arrayPtr);
-  for(int i = 0; i < arrayPtr; i++) {
+  for (int i = 0; i < arrayPtr; i++) {
     char deviceName[20];
-    if (tracking) { 
+    if (tracking) {
       strcpy(deviceName, prevPairedName[i]);
-//      strcpy(deviceName, devices[i]->getName().c_str());
+      //      strcpy(deviceName, devices[i]->getName().c_str());
     } else {
-//      strcpy(deviceName, prevPairedName[i]);
+      //      strcpy(deviceName, prevPairedName[i]);
       strcpy(deviceName, devices[i]->getAddress().toString().c_str());
     }
-    
+
     tft.drawString(deviceName, 10, 10 * i, 1);
     if (i == scrollPosition) {
-      tft.drawString(">", 0, 10*i, 1);
+      tft.drawString(">", 0, 10 * i, 1);
     }
   }
 
@@ -191,21 +223,21 @@ void rerender() {
 
 
 class MyClientCallback : public BLEClientCallbacks {
-  void onConnect(BLEClient* pclient) {
-    connected = true;
-    Serial.println("onConnect");
-  }
-
-  void onDisconnect(BLEClient* pclient) {
-    connected = false;
-    Serial.println("onDisconnect");
-    Serial.println(tracking);
-    Serial.print("connectSuccessful");
-    
-    if (tracking) {
-      beep = true;
+    void onConnect(BLEClient* pclient) {
+      connected = true;
+      Serial.println("onConnect");
     }
-  }
+
+    void onDisconnect(BLEClient* pclient) {
+      connected = false;
+      Serial.println("onDisconnect");
+      Serial.println(tracking);
+      Serial.print("connectSuccessful");
+
+      if (tracking) {
+        beep = true;
+      }
+    }
 };
 
 void setup() {
@@ -244,8 +276,19 @@ void setup() {
   primary_timer = millis();
   timeout_timer = millis();
   timer = millis();
+  last_pressed_timer = millis();
   in_welcome = false;
   toggle_state = 0;
+
+  //pwm
+  ledcSetup(1, 50, 12);//create pwm channel, @50 Hz, with 12 bits of precision
+  ledcAttachPin(14, 1); //link pwm channel to IO pin 14
+  pinMode(12, OUTPUT); //controlling TFT with our PWM controller (first part of lab)
+  pinMode(14, OUTPUT); //controlling TFT with hardware PWM (second part of lab)
+  backlight.set_duty_cycle(1);
+  ledcWrite(1, 4095);
+  backlight.update();
+  dim = false;
 
   // BLE
 
@@ -257,12 +300,12 @@ void setup() {
   pBLEScan->setWindow(99);  // less or equal setInterval value
   lastButtonPress = millis();
   scrollPosition = 0;
-//  pinMode(togglePin, INPUT_PULLUP);
-//  pinMode(refreshOrSelectPin, INPUT_PULLUP);
+  //  pinMode(togglePin, INPUT_PULLUP);
+  //  pinMode(refreshOrSelectPin, INPUT_PULLUP);
 
   pinMode(buzzerPin, OUTPUT);
-  ledcSetup(0,1E5,12);
-  ledcAttachPin(buzzerPin,0);
+  ledcSetup(0, 1E5, 12);
+  ledcAttachPin(buzzerPin, 0);
   strcpy(manufactureDesc, "MYESP32");
 
 }
@@ -280,7 +323,7 @@ void welcome() {
   // fetch weather data
 
   fetch_weather_data();
-  // fetch_calendar_data();                          
+  // fetch_calendar_data();
 }
 
 void register_prompt() {
@@ -324,17 +367,17 @@ void load_paired_items() {
   strcat(item_request_buffer, "Host: 608dev.net\r\n");
   strcat(item_request_buffer, "\r\n"); //new line from header to body
   do_http_request("608dev.net", item_request_buffer, item_response_buffer, 50, RESPONSE_TIMEOUT, true);
-  
+
   char * ptr;
-  ptr = strtok(item_response_buffer,"\n");
+  ptr = strtok(item_response_buffer, "\n");
 
   int index = 0;
   Serial.println("populating prevPaired");
   while (ptr !=  NULL)
   {
-    strcpy(prevPairedName[index],ptr);
-    ptr = strtok(NULL,"\n");
-    strcpy(prevPairedId[index],ptr);
+    strcpy(prevPairedName[index], ptr);
+    ptr = strtok(NULL, "\n");
+    strcpy(prevPairedId[index], ptr);
     ptr = strtok(NULL, "\n");
     if (ptr == NULL) {
       Serial.println("breaking");
@@ -355,7 +398,27 @@ void load_paired_items() {
 void loop() {
   button_state = digitalRead(PIN_1);
   button_state2 = digitalRead(PIN_2);
-//  Serial.println(state);
+  Serial.println(button_state);
+
+  // autodim after 10 seconds
+  if (button_state != 1 || button_state2 != 1) {
+    Serial.println("updating pressed timer");
+    last_pressed_timer = millis();
+    if (dim) {
+      dim = false;
+      backlight.set_duty_cycle(1);
+      ledcWrite(1, 4095);
+    }
+  }
+  if (!dim && millis() - last_pressed_timer > 15000) {
+    backlight.set_duty_cycle(0.5);
+    ledcWrite(1, 2048);
+    Serial.println("dimming");
+    dim = true;
+  }
+  backlight.update();
+  
+  //  Serial.println(state);
   switch (state) {
     case IDLE: {
         if (!in_welcome) {
@@ -371,11 +434,12 @@ void loop() {
           in_welcome = false;
           if (toggle_state == 0) {
             register_prompt();//UNCOMMENT ME
-//            tft.fillScreen(TFT_BLACK);
-//            tft.println("Press button to record name");
-//            state = RECORD_NAME;
-             state = REGISTER; //UNCOMMENT ME
+            //            tft.fillScreen(TFT_BLACK);
+            //            tft.println("Press button to record name");
+            //            state = RECORD_NAME;
+            state = REGISTER; //UNCOMMENT ME
           } else if (toggle_state == 1) {
+            backlight.set_duty_cycle(1);
             state = TRACK;
           } else if (toggle_state == 2) {
             view_registered();
@@ -396,9 +460,9 @@ void loop() {
         int refreshOrSelectRes = refreshOrSelectButton.update1();
         int toggleRes = toggleButton.update1();
 
-      //  Serial.print(refreshOrSelectRes);
-      //  Serial.println(toggleRes);
-      
+        //  Serial.print(refreshOrSelectRes);
+        //  Serial.println(toggleRes);
+
         if (refreshOrSelectRes == 2) {//refresh
           Serial.println("REFERESHING");
           arrayPtr = 0;
@@ -406,17 +470,17 @@ void loop() {
           delay(5000);//wait for scan to terminate
           pBLEScan->clearResults();   // delete results fromBLEScan buffer to release memory
           rerender();
-      
+
         } else if (refreshOrSelectRes == 1) {//select the current
           Serial.println("in the connecting block");
           BLEAdvertisedDevice* myDevice = devices[scrollPosition];
-      
+
           Serial.println(myDevice->getServiceUUID().toString().c_str());
-      
+
           BLEClient*  pClient  = BLEDevice::createClient();
-      
+
           pClient->setClientCallbacks(new MyClientCallback());
-          
+
           Serial.println("ready to connect");
           pClient->connect(myDevice);  // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
           Serial.println(" - Connected to server");
@@ -430,8 +494,8 @@ void loop() {
             pClient->disconnect();
           }
           Serial.println(" - Found our service");
-      
-      
+
+
           // Obtain a reference to the characteristic in the service of the remote BLE server.
           BLERemoteCharacteristic* pRemoteCharacteristic = pRemoteService->getCharacteristic(PAIR_CHARACTERISTIC_UUID);
           if (pRemoteCharacteristic == nullptr) {
@@ -439,21 +503,21 @@ void loop() {
             pClient->disconnect();
           }
           Serial.println(" - Found our characteristic");
-      
+
           // Read the value of the characteristic.
-          if(pRemoteCharacteristic->canWrite()) {
+          if (pRemoteCharacteristic->canWrite()) {
             pRemoteCharacteristic->writeValue("true", false);
             Serial.print("Set changed");
           }
-  
+
           int yes = refreshOrSelectButton.update1();
           int no = toggleButton.update1();
-  
-          while(yes == 0 && no == 0) {
+
+          while (yes == 0 && no == 0) {
             yes = refreshOrSelectButton.update1();
             no = toggleButton.update1();
           }
-  
+
           if (yes != 0) {
             pRemoteCharacteristic->writeValue("false", false);
             strcpy(address, myDevice->getAddress().toString().c_str());
@@ -465,7 +529,7 @@ void loop() {
             tft.drawString("Press button to record item's name", 0, 50, 1);
             state = RECORD_NAME;
           }
-          if(pRemoteCharacteristic->canWrite()) {
+          if (pRemoteCharacteristic->canWrite()) {
             pRemoteCharacteristic->writeValue("false", false);
             Serial.print("Set changed");
           }
@@ -482,15 +546,15 @@ void loop() {
       break;
     case RECORD_NAME: {
         int refreshOrSelectRes = refreshOrSelectButton.update1();
-//        if (resfreshOrSelectRes != 0) {
-          handle_record();
-          state = NAME_VERIFY;
-          Serial.println("transitioning to NAME_VERIFY");
-          tft.fillScreen(TFT_BLACK);
-          tft.drawString("Is", 0, 10, 1);
-          tft.drawString(temp_transcript, 0, 20, 1);
-          tft.drawString("correct?", 0, 30, 1);
-//        }
+        //        if (resfreshOrSelectRes != 0) {
+        handle_record();
+        state = NAME_VERIFY;
+        Serial.println("transitioning to NAME_VERIFY");
+        tft.fillScreen(TFT_BLACK);
+        tft.drawString("Is", 0, 10, 1);
+        tft.drawString(temp_transcript, 0, 20, 1);
+        tft.drawString("correct?", 0, 30, 1);
+        //        }
       }
       break;
 
@@ -498,7 +562,7 @@ void loop() {
       {
         int refreshOrSelectRes = refreshOrSelectButton.update1();
         int toggleRes = toggleButton.update1();
-  
+
         // reject the name
         if (refreshOrSelectRes == SHORTPRESS) {
           memset(name_transcript, 0, strlen(name_transcript));
@@ -509,13 +573,13 @@ void loop() {
         }
         // accept the name
         if (toggleRes == SHORTPRESS) {
-            tft.fillScreen(TFT_BLACK);
-            tft.drawString("Press button to record\n description",0,50,1);
-            Serial.println("transitioning to RECORD_DESCRIPTION");
-            memset(name_transcript, 0, strlen(name_transcript));
-            strcpy(name_transcript, temp_transcript);
-            memset(temp_transcript, 0, strlen(temp_transcript));
-            state = RECORD_DESCRIPTION;
+          tft.fillScreen(TFT_BLACK);
+          tft.drawString("Press button to record\n description", 0, 50, 1);
+          Serial.println("transitioning to RECORD_DESCRIPTION");
+          memset(name_transcript, 0, strlen(name_transcript));
+          strcpy(name_transcript, temp_transcript);
+          memset(temp_transcript, 0, strlen(temp_transcript));
+          state = RECORD_DESCRIPTION;
         }
       }
       break;
@@ -524,8 +588,8 @@ void loop() {
       {
         int refreshOrSelectRes = refreshOrSelectButton.update1();
         int toggleRes = toggleButton.update1();
-  
-//        if (!button_state && button_state != old_button_state) {
+
+        //        if (!button_state && button_state != old_button_state) {
         handle_record();
         state = DESCRIPTION_VERIFY;
         Serial.println("transitioning to DESCRIPTION_VERIFY");
@@ -533,8 +597,8 @@ void loop() {
         tft.drawString("Is", 0, 10, 1);
         tft.drawString(temp_transcript, 0, 20, 1);
         tft.drawString("correct?", 0, 30, 1);
-//        }
-  
+        //        }
+
       }
       break;
 
@@ -542,7 +606,7 @@ void loop() {
       {
         int refreshOrSelectRes = refreshOrSelectButton.update1();
         int toggleRes = toggleButton.update1();
-  
+
         // reject the description
         if (refreshOrSelectRes == SHORTPRESS) {
           memset(temp_transcript, 0, strlen(temp_transcript));
@@ -586,18 +650,18 @@ void loop() {
         if (beep && toggleRes == 2) {
           tracking = false;
           beep = false;
-          ledcWrite(0,0);
+          ledcWrite(0, 0);
           state = IDLE;
           return;
         }
-        
-//        for (int i = 0; i < 5; i++) {
-//          memset(prevPairedId[i], 0, strlen(prevPairedId[i]));
-//          memset(prevPairedName[i], 0, strlen(prevPairedName[i]));
-//        }
-      //  Serial.print(refreshOrSelectRes);
-      //  Serial.println(toggleRes);
-      
+
+        //        for (int i = 0; i < 5; i++) {
+        //          memset(prevPairedId[i], 0, strlen(prevPairedId[i]));
+        //          memset(prevPairedName[i], 0, strlen(prevPairedName[i]));
+        //        }
+        //  Serial.print(refreshOrSelectRes);
+        //  Serial.println(toggleRes);
+
         if (refreshOrSelectRes == 2) {//refresh
           load_paired_items();
           Serial.println("REFERESHING");
@@ -606,56 +670,56 @@ void loop() {
           delay(5000);//wait for scan to terminate
           pBLEScan->clearResults();   // delete results fromBLEScan buffer to release memory
           rerender();
-      
+
         } else if (refreshOrSelectRes == 1) {//select the current
           Serial.println("in the connecting block");
           BLEAdvertisedDevice* myDevice = devices[scrollPosition];
-      
+
           Serial.println(myDevice->getServiceUUID().toString().c_str());
-      
+
           BLEClient*  pClient  = BLEDevice::createClient();
-      
+
           pClient->setClientCallbacks(new MyClientCallback());
-          
+
           Serial.println("ready to connect");
           connectSuccessful = pClient->connect(myDevice);  // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
           Serial.println(" - Connected to server");
           strcpy(address, myDevice->getAddress().toString().c_str());
           paired = true;
-      
-              // Obtain a reference to the service we are after in the remote BLE server.
-              BLERemoteService* pRemoteService = pClient->getService(SERVICE_UUID);
-              if (pRemoteService == nullptr) {
-                Serial.print("Failed to find our service UUID: ");
-                pClient->disconnect();
-              }
-              Serial.println(" - Found our service");
-          
-          
-              // Obtain a reference to the characteristic in the service of the remote BLE server.
-              BLERemoteCharacteristic* pRemoteCharacteristic = pRemoteService->getCharacteristic(TRACK_CHARACTERISTIC_UUID);
-              if (pRemoteCharacteristic == nullptr) {
-                Serial.print("Failed to find our characteristic UUID: ");
-                pClient->disconnect();
-              }
-              Serial.println(" - Found our characteristic");
-          
-              // Read the value of the characteristic.
-              if(pRemoteCharacteristic->canWrite()) {
-                pRemoteCharacteristic->writeValue("true", false);
-                Serial.print("Set changed");
-              }
-      
+
+          // Obtain a reference to the service we are after in the remote BLE server.
+          BLERemoteService* pRemoteService = pClient->getService(SERVICE_UUID);
+          if (pRemoteService == nullptr) {
+            Serial.print("Failed to find our service UUID: ");
+            pClient->disconnect();
+          }
+          Serial.println(" - Found our service");
+
+
+          // Obtain a reference to the characteristic in the service of the remote BLE server.
+          BLERemoteCharacteristic* pRemoteCharacteristic = pRemoteService->getCharacteristic(TRACK_CHARACTERISTIC_UUID);
+          if (pRemoteCharacteristic == nullptr) {
+            Serial.print("Failed to find our characteristic UUID: ");
+            pClient->disconnect();
+          }
+          Serial.println(" - Found our characteristic");
+
+          // Read the value of the characteristic.
+          if (pRemoteCharacteristic->canWrite()) {
+            pRemoteCharacteristic->writeValue("true", false);
+            Serial.print("Set changed");
+          }
+
         } else if (toggleRes == 1 ) {
           scrollPosition = (scrollPosition + 1) % (arrayPtr);
           rerender();
-        } 
-      
+        }
+
         if (beep) {
           Serial.println("BEEEEEP");
           digitalWrite(buzzerPin, HIGH);
-          ledcWriteTone(0,800);
-          ledcWriteNote(0,NOTE_C,1);
+          ledcWriteTone(0, 800);
+          ledcWriteNote(0, NOTE_C, 1);
           delay(500);
         }
       }
