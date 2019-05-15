@@ -25,6 +25,7 @@ BLEAdvertising *pAdvertising;
 BLEAdvertisementData advert;
 
 int ledPin = 12;
+int buttonPin = 15;
 boolean tracked = false;
 boolean paired = false;
 boolean connected = false;
@@ -92,7 +93,7 @@ void setup() {
   Serial.begin(115200);
   Serial.println("Starting BLE work!");
 
-  BLEDevice::init("MYESP32");
+  BLEDevice::init("MYESP32B");
   BLEServer *pServer = BLEDevice::createServer();
   BLEService *pService = pServer->createService(SERVICE_UUID);
   BLECharacteristic *pTrackCharacteristic = pService->createCharacteristic(
@@ -144,22 +145,46 @@ void setup() {
   Serial.println("Characteristic defined! Now you can read it in your phone!");
 
   pinMode(ledPin, OUTPUT); //LED setup
+<<<<<<< HEAD
   ledcSetup(0, 1E5, 12); //buzzer setup
   ledcAttachPin(22, 0);
 }
 
 void loop() {
   if (paired) {
+=======
+  
+  pinMode(buttonPin, INPUT_PULLUP);
+  ledcSetup(0,1E5,12); //buzzer setup
+  ledcAttachPin(22,0);
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+  uint8_t button = digitalRead(buttonPin);
+  Serial.println(button);
+  if (!button){
+    digitalWrite(ledPin, HIGH);
+    delay(500);
+    digitalWrite(ledPin, LOW);
+    delay(500);
+    digitalWrite(ledPin, HIGH);
+    delay(500);
+    digitalWrite(ledPin, LOW);
+    delay(500);
+    ESP.restart();
+  } else if (paired) {
     Serial.println("being paired");
     digitalWrite(ledPin, HIGH);
     delay(500);
     ledcWriteTone(0, 800);
   } else if (tracked && !connected) {
-    Serial.println("we have an issue");
-    //code for tracking
-    digitalWrite(ledPin, HIGH);
-    delay(500);
-    ledcWriteTone(0, 800);
+//    Serial.println("we have an issue");
+//    //code for tracking
+//    digitalWrite(ledPin, HIGH);
+//    delay(500);
+//    ledcWriteTone(0, 800);
+    ESP.restart();
   } else {
     digitalWrite(ledPin, LOW);
     ledcWriteNote(0, NOTE_C, 1);
