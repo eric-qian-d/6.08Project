@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "button.cpp"
+#include "pwm.cpp"
 
 #define IDLE 0
 #define REGISTER 1
@@ -49,6 +50,7 @@ const uint8_t PIN_2 = 5; //button 2
 
 uint32_t primary_timer;
 uint32_t timer;
+uint32_t last_pressed_timer;
 uint32_t timeout_timer;
 
 const uint8_t TIMEOUT_PERIOD = 2500; //milliseconds
@@ -59,6 +61,36 @@ uint8_t toggle_selection;
 uint8_t num_items;
 uint8_t state;
 uint8_t screen_color;
+
+/* PWM */
+PWM_608::PWM_608(int op, float frequency) {
+  pin = op;
+  digitalWrite(pin, 0);
+  period = (int) ((1000. / frequency));
+  set_duty_cycle(0);
+}
+
+void PWM_608::update() {
+  if (on_amt == 0) {
+    digitalWrite(pin, 0);
+  } else if (millis() % period < on_amt) {
+    digitalWrite(pin, 1);
+  } else if (millis() % period >= on_amt) {
+    digitalWrite(pin, 0);
+  }
+}
+void PWM_608::set_duty_cycle(float duty_cycle) {
+  if (duty_cycle < 0) {
+    duty_cycle = 0;
+  } else if (duty_cycle > 1) {
+    duty_cycle = 1;
+  }
+  on_amt = (int) (period * duty_cycle);
+  update();
+}
+
+PWM_608 backlight(12, 50); //create instance of PWM to control backlight on pin 12, operating at 50 Hz
+bool dim;
 
 /* MIC VARIABLES*/
 
@@ -172,6 +204,9 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 
 void rerender() {
   tft.fillScreen(TFT_BLACK); //fill background
+  Serial.println("IN RERENDR");
+  Serial.println(arrayPtr);
+
   for (int i = 0; i < arrayPtr; i++) {
     char deviceName[20];
     if (tracking) {
@@ -209,7 +244,7 @@ class MyClientCallback : public BLEClientCallbacks {
       connected = true;
       Serial.println("onConnect");
     }
-    
+
     void onDisconnect(BLEClient* pclient) {
       connected = false;
       Serial.println("onDisconnect");
@@ -269,8 +304,19 @@ void setup() {
   primary_timer = millis();
   timeout_timer = millis();
   timer = millis();
+  last_pressed_timer = millis();
   in_welcome = false;
   toggle_state = 0;
+
+  //pwm
+  ledcSetup(1, 50, 12);//create pwm channel, @50 Hz, with 12 bits of precision
+  ledcAttachPin(14, 1); //link pwm channel to IO pin 14
+  pinMode(12, OUTPUT); //controlling TFT with our PWM controller (first part of lab)
+  pinMode(14, OUTPUT); //controlling TFT with hardware PWM (second part of lab)
+  backlight.set_duty_cycle(1);
+  ledcWrite(1, 4095);
+  backlight.update();
+  dim = false;
 
   // BLE
   BLEDevice::init("");
@@ -410,7 +456,6 @@ void load_paired_items() {
   strcat(item_request_buffer, "Host: 608dev.net\r\n");
   strcat(item_request_buffer, "\r\n"); //new line from header to body
   do_http_request("608dev.net", item_request_buffer, item_response_buffer, 50, RESPONSE_TIMEOUT, true);
-
   char * ptr;
   ptr = strtok(item_response_buffer, "\n");
   Serial.println(ptr);
@@ -418,9 +463,9 @@ void load_paired_items() {
   Serial.println("populating prevPaired");
   while (ptr !=  NULL)
   {
-
     Serial.println("i'm in the loop");
     strcpy(prevPairedName[index], ptr);
+
     ptr = strtok(NULL, "\n");
     Serial.println(ptr);
     strcpy(prevPairedId[index], ptr);
@@ -446,6 +491,27 @@ void load_paired_items() {
 void loop() {
   button_state = digitalRead(PIN_1);
   button_state2 = digitalRead(PIN_2);
+  Serial.println(button_state);
+
+  // autodim after 10 seconds
+  if (button_state != 1 || button_state2 != 1) {
+    Serial.println("updating pressed timer");
+    last_pressed_timer = millis();
+    if (dim) {
+      dim = false;
+      backlight.set_duty_cycle(1);
+      ledcWrite(1, 4095);
+    }
+  }
+  if (!dim && millis() - last_pressed_timer > 15000) {
+    backlight.set_duty_cycle(0.5);
+    ledcWrite(1, 2048);
+    Serial.println("dimming");
+    dim = true;
+  }
+  backlight.update();
+  
+  //  Serial.println(state);
 
   switch (state) {
     case IDLE: {
@@ -465,6 +531,7 @@ void loop() {
             register_prompt();
             state = REGISTER;
           } else if (toggle_state == 1) {
+            backlight.set_duty_cycle(1);
             state = TRACK;
           } else if (toggle_state == 2) {
             view_registered();
@@ -729,7 +796,6 @@ void loop() {
           pBLEScan->clearResults();   // delete results fromBLEScan buffer to release memory
           rerender();
           tft.drawString("TRACK", 0, 10, 1);
-
         } else if (refreshOrSelectRes == 1) {//select the current
           Serial.println("in the connecting block");
           BLEAdvertisedDevice* myDevice = devices[scrollPosition];
