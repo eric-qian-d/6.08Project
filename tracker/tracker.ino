@@ -175,13 +175,10 @@ void rerender() {
   for (int i = 0; i < arrayPtr; i++) {
     char deviceName[20];
     if (tracking) {
-      Serial.println("IN RERENDER");
-      Serial.println(arrayPtr);
       for (int i = 0; i < arrayPtr; i++) {
         char deviceName[20];
         if (tracking) {
           strcpy(deviceName, prevPairedName[i]);
-          //      strcpy(deviceName, devices[i]->getName().c_str());
           tft.setTextColor(TFT_WHITE, TFT_BLACK);
           for (int j = 0; j < 10; j++) {
             if (selected[j] == i) {
@@ -228,10 +225,6 @@ class MyClientCallback : public BLEClientCallbacks {
           }
           
         }
-
-
-
-        
         tft.fillScreen(TFT_BLACK);
         tft.drawString("Connection lost!", 0, 50, 1);
         tft.drawString("Press right button to exit.", 0, 60, 1);
