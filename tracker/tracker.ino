@@ -98,9 +98,9 @@ WiFiClientSecure client; //global WiFiClient Secure object
 boolean in_welcome;
 char select_char[] = "-"; // selection indicator variable
 char address[400]; // stores uuid
-char prevPairedId[5][15]; //tracks what things have been paired
-char prevPairedName[5][15]; //tracks what things have been paired
-char prevPairedSyncName[5][15];
+char prevPairedId[5][15]; //tracks address of previously paired device
+char prevPairedName[5][15]; //tracks given name of previously paired device
+char prevPairedSyncName[5][15]; //tracks given name of previously paired device, such that the indexes align with devices[]
 
 static BLEUUID SERVICE_UUID("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
 static BLEUUID TRACK_CHARACTERISTIC_UUID("beb5483e-36e1-4688-b7f5-ea07361b26a8");
@@ -123,12 +123,16 @@ bool connectSuccessful = false;
 int selected[10];
 int selectPtr = 0;
 
+bool firstDisconnectedDevice = true;
+int lostDeviceIndex;
+
 Button refreshOrSelectButton(refreshOrSelectPin);
 Button toggleButton(togglePin);
 BLEAdvertisedDevice* devices[5]; // can have a list of 4 devices that are advertised at any given time
+BLEClient* clients[5];
 
 
-BLEScan* pBLEScan;;
+BLEScan* pBLEScan;
 
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
     void onResult(BLEAdvertisedDevice advertisedDevice) {
@@ -160,10 +164,6 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
           }
           Serial.println(arrayPtr);
           Serial.println("GREAAT SUCESS TRACKING");
-          //          if (arrayPtr < 4) {
-          //            devices[arrayPtr] = new BLEAdvertisedDevice(advertisedDevice);
-          //            arrayPtr++;
-          //          }
         }
       }
 
@@ -216,10 +216,22 @@ class MyClientCallback : public BLEClientCallbacks {
     void onDisconnect(BLEClient* pclient) {
       connected = false;
       Serial.println("onDisconnect");
-      Serial.println(tracking);
-      Serial.print("connectSuccessful");
 
       if (tracking) {
+        if (firstDisconnectedDevice) {
+          beep = true;
+          firstDisconnectedDevice = false;
+          for (int i = 0; i < 5; i++) {
+            if (clients[i] == pclient) {
+              lostDeviceIndex = i;
+            }
+          }
+          
+        }
+
+
+
+        
         tft.fillScreen(TFT_BLACK);
         tft.drawString("Connection lost!", 0, 50, 1);
         tft.drawString("Press right button to exit.", 0, 60, 1);
@@ -284,6 +296,12 @@ void setup() {
   ledcAttachPin(buzzerPin, 0);
   strcpy(manufactureDesc, "MYESP32");
   WiFi.mode(WIFI_OFF);
+
+  for (int i = 0; i < 5; i++) {
+    BLEClient* pClient = BLEDevice::createClient();
+    pClient->setClientCallbacks(new MyClientCallback());
+    clients[i] = pClient;
+  }
 
 }
 
@@ -438,6 +456,7 @@ void loop() {
 
   switch (state) {
     case IDLE: {
+        
         if (!in_welcome) {
           welcome(); // welcome the user
         }
@@ -493,9 +512,7 @@ void loop() {
 
           Serial.println(myDevice->getServiceUUID().toString().c_str());
 
-          BLEClient*  pClient  = BLEDevice::createClient();
-
-          pClient->setClientCallbacks(new MyClientCallback());
+          BLEClient*  pClient  = clients[scrollPosition];
 
           Serial.println("ready to connect");
           pClient->connect(myDevice);  // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
@@ -695,6 +712,7 @@ void loop() {
         if (beep && toggleRes == 2) {
           tracking = false;
           beep = false;
+          firstDisconnectedDevice = true;
           ledcWrite(0, 0);
           state = IDLE;
           return;
@@ -725,9 +743,7 @@ void loop() {
 
           Serial.println(myDevice->getServiceUUID().toString().c_str());
 
-          BLEClient*  pClient  = BLEDevice::createClient();
-
-          pClient->setClientCallbacks(new MyClientCallback());
+          BLEClient*  pClient  = clients[scrollPosition];
 
           Serial.println("ready to connect");
           connectSuccessful = pClient->connect(myDevice);  // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
@@ -777,6 +793,12 @@ void loop() {
           ledcWriteTone(0, 800);
           ledcWriteNote(0, NOTE_C, 1);
           delay(500);
+          tft.fillScreen(TFT_BLACK);
+          tft.drawString("Items lost!", 0, 10, 1);
+          char lostDeviceName[20];
+          strcpy(lostDeviceName, prevPairedSyncName[lostDeviceIndex]);
+          tft.drawString("Hold right button to quit", 0, 30, 1);
+          tft.drawString("Hold right button to quit", 0, 30, 1);
         }
       }
       break;
