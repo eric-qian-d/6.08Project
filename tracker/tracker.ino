@@ -184,6 +184,8 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
       } else  {
         if (advertisedDevice.haveServiceUUID() && strcmp(advertisedDevice.getServiceUUID().toString().c_str(), test) == 0) {
           for (int i = 0; i < prevPairedPtr; i++) {
+            Serial.println(deviceAddress);
+            Serial.println(prevPairedId[i]);
             if (strcmp(deviceAddress, prevPairedId[i]) == 0) {
               if (arrayPtr < 4) {
                 Serial.println("WE FOUND A REGISTERED DEVICE");
@@ -209,16 +211,16 @@ void rerender() {
 
   for (int i = 0; i < arrayPtr; i++) {
     char deviceName[20];
-    if (tracking) {
-      Serial.println("IN RERENDER");
-      Serial.println(arrayPtr);
+//    if (tracking) {
       for (int i = 0; i < arrayPtr; i++) {
         char deviceName[20];
         if (tracking) {
-          strcpy(deviceName, prevPairedName[i]);
-          //      strcpy(deviceName, devices[i]->getName().c_str());
+          Serial.print("name should be: ");
+          Serial.println(prevPairedSyncName[i]);
+          strcpy(deviceName, prevPairedSyncName[i]);
+          Serial.println(deviceName);
           tft.setTextColor(TFT_WHITE, TFT_BLACK);
-          for (int j = 0; j < 10; j++) {
+          for (int j = 0; j < selectPtr; j++) {
             if (selected[j] == i) {
               tft.setTextColor(TFT_GREEN, TFT_BLACK);
             }
@@ -234,11 +236,13 @@ void rerender() {
           tft.drawString(">", 0, 10 * (i + 1), 1); //change back to just i
         }
       }
+//      tft.drawString("Short press right", 0, 70, 1);
+//      tft.drawString("to scroll ", 0, 80, 1);
       tft.drawString("Long press left to", 0, 100, 1);
       tft.drawString("rescan for tags", 0, 110, 1);
       tft.drawString("Long press right to", 0, 130, 1);
       tft.drawString("return to main menu", 0, 140, 1);
-    }
+//    }
   }
 }
 
@@ -261,13 +265,21 @@ class MyClientCallback : public BLEClientCallbacks {
               lostDeviceIndex = i;
             }
           }
+          tft.fillScreen(TFT_BLACK);
+          tft.drawString("Items lost!", 0, 10, 1);
+          char lostDeviceName[20];
+          strcpy(lostDeviceName, prevPairedSyncName[lostDeviceIndex]);
+          
+          Serial.print("lost device index: ");
+          Serial.println(lostDeviceIndex);
+          Serial.println(lostDeviceName);
 
+          
+          tft.drawString(lostDeviceName, 0, 20, 1);
+          tft.drawString("Hold right button", 0, 30, 1);
+          tft.drawString(" to quit", 0, 40, 1);
+          
         }
-
-        tft.fillScreen(TFT_BLACK);
-        tft.drawString("Connection lost!", 0, 50, 1);
-        tft.drawString("Press right button to exit.", 0, 60, 1);
-        beep = true;
       }
     }
 };
@@ -385,8 +397,10 @@ void welcome() {
   tft.drawString("View registered", 10, 50, 1);
   tft.drawString("items", 10, 60, 1);
   tft.drawString(select_char, 2, (toggle_state + 3) * 10, 1);
-  tft.drawString("Long press left to", 0, 120, 1);
-  tft.drawString("select action!", 0, 130, 1);
+  tft.drawString("Short press left to", 0, 110, 1);
+  tft.drawString("select action!", 0, 120, 1);
+  tft.drawString("Short press right to", 0, 140, 1);
+  tft.drawString("scroll!", 0, 150, 1);
 
   fetch_weather_data();
   disconnectWifi();
@@ -467,6 +481,7 @@ void load_paired_items() {
   Serial.println("populating prevPaired");
   while (ptr !=  NULL)
   {
+    prevPairedPtr++;
     Serial.println("i'm in the loop");
     strcpy(prevPairedName[index], ptr);
 
@@ -495,7 +510,7 @@ void load_paired_items() {
 void loop() {
   button_state = digitalRead(PIN_1);
   button_state2 = digitalRead(PIN_2);
-  Serial.println(button_state);
+//  Serial.println(button_state);
 
   // autodim after 15 seconds
   if (button_state != 1 || button_state2 != 1) {
@@ -522,13 +537,14 @@ void loop() {
         if (!in_welcome) {
           welcome(); // welcome the user
         }
-        toggle = refreshOrSelectButton.update1();
-        if (toggle == SHORTPRESS) {
+        int refreshOrSelectRes = refreshOrSelectButton.update1();
+        int toggleRes = toggleButton.update1();
+        if (toggleRes == SHORTPRESS) {
           tft.drawString(" ", 2, 10 * (toggle_state + 3), 1);
           toggle_state += 1;
           toggle_state %= 3;
           tft.drawString(select_char, 2, 10 * (toggle_state + 3), 1);
-        } else if (toggle == LONGPRESS) {
+        } else if ( refreshOrSelectRes == SHORTPRESS) {
           in_welcome = false;
           if (toggle_state == 0) {
             register_prompt();
@@ -649,7 +665,7 @@ void loop() {
         Serial.println("transitioning to NAME_VERIFY");
         tft.fillScreen(TFT_BLACK);
         tft.drawString("Is", 0, 10, 1);
-        tft.drawString(temp_transcript, 0, 20, 2);
+        tft.drawString(temp_transcript, 0, 20, 1);
         tft.drawString("correct?", 0, 30, 1);
         tft.drawString("ACCEPT: short press", 0, 120, 1);
         tft.drawString("right button", 0, 130, 1);
@@ -677,7 +693,8 @@ void loop() {
         if (toggleRes == SHORTPRESS) {
           tft.fillScreen(TFT_BLACK);
           tft.drawString("Hold left button to", 0, 50, 1);
-          tft.drawString("record item's name", 0, 60, 1);
+          tft.drawString("record item", 0, 60, 1);
+          tft.drawString("description", 0, 70, 1);
           Serial.println("transitioning to RECORD_DESCRIPTION");
           memset(name_transcript, 0, strlen(name_transcript));
           strcpy(name_transcript, temp_transcript);
@@ -698,7 +715,7 @@ void loop() {
         Serial.println("transitioning to DESCRIPTION_VERIFY");
         tft.fillScreen(TFT_BLACK);
         tft.drawString("Is", 0, 10, 1);
-        tft.drawString(temp_transcript, 0, 20, 2);
+        tft.drawString(temp_transcript, 0, 20, 1);
         tft.drawString("correct?", 0, 30, 1);
         tft.drawString("ACCEPT: short press", 0, 120, 1);
         tft.drawString("right button", 0, 130, 1);
@@ -742,7 +759,7 @@ void loop() {
           do_http_request("608dev.net", request_buffer, response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
           //tft.println(response); //print the result
           tft.fillScreen(TFT_BLACK);
-          tft.drawString(name_transcript, 0, 10, 2);
+          tft.drawString(name_transcript, 0, 10, 1);
           tft.drawString(" has been registered", 0, 20, 1);
           memset(name_transcript, 0, strlen(name_transcript));
           memset(description_transcript, 0, strlen(description_transcript));
@@ -778,6 +795,7 @@ void loop() {
           firstDisconnectedDevice = true;
           ledcWrite(0, 0);
           state = IDLE;
+          selectPtr = 0;
           return;
         }
 
@@ -798,10 +816,14 @@ void loop() {
           delay(5000);//wait for scan to terminate
           pBLEScan->clearResults();   // delete results fromBLEScan buffer to release memory
           rerender();
-          tft.drawString("TRACK", 0, 10, 1);
+//          tft.drawString("TRACK", 0, 10, 1);
+
         } else if (refreshOrSelectRes == 1) {//select the current
           Serial.println("in the connecting block");
           BLEAdvertisedDevice* myDevice = devices[scrollPosition];
+
+          selected[selectPtr] = scrollPosition;
+          selectPtr++;
 
           Serial.println(myDevice->getServiceUUID().toString().c_str());
 
@@ -835,10 +857,10 @@ void loop() {
             pRemoteCharacteristic->writeValue("true", false);
             Serial.print("Set changed");
           }
+          rerender();
 
         } else if (toggleRes == 1 ) {
           scrollPosition = (scrollPosition + 1) % (arrayPtr);
-          selected[selectPtr] = scrollPosition;
           rerender();
         }
         else if (toggleRes == 2) {
@@ -855,12 +877,7 @@ void loop() {
           ledcWriteTone(0, 800);
           ledcWriteNote(0, NOTE_C, 1);
           delay(500);
-          tft.fillScreen(TFT_BLACK);
-          tft.drawString("Items lost!", 0, 10, 1);
-          char lostDeviceName[20];
-          strcpy(lostDeviceName, prevPairedSyncName[lostDeviceIndex]);
-          tft.drawString("Hold right button to quit", 0, 30, 1);
-          tft.drawString("Hold right button to quit", 0, 30, 1);
+          
         }
       }
       break;
