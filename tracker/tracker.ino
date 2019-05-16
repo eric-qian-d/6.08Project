@@ -155,6 +155,10 @@ bool connectSuccessful = false;
 int selected[10];
 int selectPtr = 0;
 
+bool reconnectAttempted = false;
+char connectedAddresses[5][20];
+int numConnected = 0;
+
 bool firstDisconnectedDevice = true;
 int lostDeviceIndex;
 
@@ -181,7 +185,18 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
             arrayPtr++;
           }
         }
-      } else  {
+      } else if (reconnectAttempted) {
+         if (advertisedDevice.haveServiceUUID() && strcmp(advertisedDevice.getServiceUUID().toString().c_str(), test) == 0) {
+            for(int i = 0; i < numConnected; i++) {
+              if (strcmp(connectedAddresses[i], deviceAddress) == 0) {
+                memset(connectedAddresses[i], 0, strlen(connectedAddresses[i]));
+              }
+            }
+         }
+      }
+      
+      
+      else  {
         if (advertisedDevice.haveServiceUUID() && strcmp(advertisedDevice.getServiceUUID().toString().c_str(), test) == 0) {
           for (int i = 0; i < prevPairedPtr; i++) {
             Serial.println(deviceAddress);
@@ -258,33 +273,33 @@ class MyClientCallback : public BLEClientCallbacks {
 //      Serial.println(pclient);
 
       if (tracking) {
-        if (firstDisconnectedDevice) {
+//        if (firstDisconnectedDevice) {
           
           firstDisconnectedDevice = false;
-          beep = true;
-          Serial.println(clients[0] == pclient);
-          Serial.println(clients[1] == pclient);
-          for (int i = 0; i < 5; i++) {
-            if (clients[i] == pclient) {
-//              Serial.print
-              lostDeviceIndex = i;
-            }
-          }
-          tft.fillScreen(TFT_BLACK);
-          tft.drawString("Items lost!", 0, 10, 1);
-          char lostDeviceName[20];
-          strcpy(lostDeviceName, prevPairedSyncName[lostDeviceIndex]);
+//          beep = true;
+//          Serial.println(clients[0] == pclient);
+//          Serial.println(clients[1] == pclient);
+//          for (int i = 0; i < 5; i++) {
+//            if (clients[i] == pclient) {
+////              Serial.print
+//              lostDeviceIndex = i;
+//            }
+//          }
+//          tft.fillScreen(TFT_BLACK);
+//          tft.drawString("Items lost!", 0, 10, 1);
+//          char lostDeviceName[20];
+//          strcpy(lostDeviceName, prevPairedSyncName[lostDeviceIndex]);
+//          
+//          Serial.print("lost device index: ");
+//          Serial.println(lostDeviceIndex);
+//          Serial.println(lostDeviceName);
+//
+//          
+//          tft.drawString(lostDeviceName, 0, 20, 1);
+//          tft.drawString("Hold right button", 0, 30, 1);
+//          tft.drawString(" to quit", 0, 40, 1);
           
-          Serial.print("lost device index: ");
-          Serial.println(lostDeviceIndex);
-          Serial.println(lostDeviceName);
-
-          
-          tft.drawString(lostDeviceName, 0, 20, 1);
-          tft.drawString("Hold right button", 0, 30, 1);
-          tft.drawString(" to quit", 0, 40, 1);
-          
-        }
+//        }
       }
     }
 };
@@ -364,7 +379,7 @@ void setup() {
   }
   Serial.println(clients[0] == clients[1]);
 
-}
+} 
 
 void connectWifi() {
   WiFi.begin(network, password); //attempt to connect to wifi
@@ -806,24 +821,30 @@ void loop() {
           ledcWrite(0, 0);
           state = IDLE;
           selectPtr = 0;
+          numConnected = 0;
+          reconnectAttempted = false;
+          for (int i = 0; i < 5; i++) {
+                  memset(connectedAddresses[i], 0, strlen(connectedAddresses[i]));
+                }
           return;
         }
 
-                for (int i = 0; i < 5; i++) {
-                  memset(prevPairedId[i], 0, strlen(prevPairedId[i]));
-                  memset(prevPairedName[i], 0, strlen(prevPairedName[i]));
-                }
+                
         //  Serial.print(refreshOrSelectRes);
         //  Serial.println(toggleRes);
 
         if (refreshOrSelectRes == 2) {//refresh
           tft.fillScreen(TFT_BLACK);
           tft.drawCentreString("Loading items", 3, 50, 2);
+          for (int i = 0; i < 5; i++) {
+                  memset(prevPairedId[i], 0, strlen(prevPairedId[i]));
+                  memset(prevPairedName[i], 0, strlen(prevPairedName[i]));
+                }
           load_paired_items();
           Serial.println("REFRESHING");
           arrayPtr = 0;
           BLEScanResults foundDevices = pBLEScan->start(2, false);
-          delay(5000);//wait for scan to terminate
+          delay(3000);//wait for scan to terminate
           pBLEScan->clearResults();   // delete results fromBLEScan buffer to release memory
           rerender();
 //          tft.drawString("TRACK", 0, 10, 1);
@@ -867,6 +888,11 @@ void loop() {
             pRemoteCharacteristic->writeValue("true", false);
             Serial.print("Set changed");
           }
+
+          strcpy(connectedAddresses[numConnected], myDevice->getAddress().toString().c_str());
+          numConnected++;
+
+          
           rerender();
 
         } else if (toggleRes == 1 ) {
@@ -876,6 +902,37 @@ void loop() {
         else if (toggleRes == 2) {
           state = IDLE;
         }
+
+        if (firstDisconnectedDevice && !reconnectAttempted) {
+          reconnectAttempted = true; 
+
+          BLEScanResults foundDevices = pBLEScan->start(2, false);
+          delay(3000);//wait for scan to terminate
+          pBLEScan->clearResults(); 
+
+          for(int i = 0; i < numConnected; i++) {
+            if (strlen(connectedAddresses[i]) > 0) {
+              beep = true;
+              lostDeviceIndex = i;
+            }
+          }
+
+          tft.fillScreen(TFT_BLACK);
+          tft.drawString("Items lost!", 0, 10, 1);
+          char lostDeviceName[20];
+          strcpy(lostDeviceName, prevPairedSyncName[lostDeviceIndex]);
+          
+          Serial.print("lost device index: ");
+          Serial.println(lostDeviceIndex);
+          Serial.println(lostDeviceName);
+
+          
+          tft.drawString(lostDeviceName, 0, 20, 1);
+          tft.drawString("Hold right button", 0, 30, 1);
+          tft.drawString(" to quit", 0, 40, 1);
+
+        }
+        
 
         if (beep) {
           Serial.println("BEEEEEP");
