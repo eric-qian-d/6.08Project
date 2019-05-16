@@ -145,19 +145,10 @@ void setup() {
   Serial.println("Characteristic defined! Now you can read it in your phone!");
 
   pinMode(ledPin, OUTPUT); //LED setup
-<<<<<<< HEAD
   ledcSetup(0, 1E5, 12); //buzzer setup
   ledcAttachPin(22, 0);
 }
 
-void loop() {
-  if (paired) {
-=======
-  
-  pinMode(buttonPin, INPUT_PULLUP);
-  ledcSetup(0,1E5,12); //buzzer setup
-  ledcAttachPin(22,0);
-}
 
 void loop() {
   // put your main code here, to run repeatedly:
