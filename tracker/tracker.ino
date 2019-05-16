@@ -227,6 +227,10 @@ void rerender() {
   Serial.println("IN RERENDR");
   Serial.println(arrayPtr);
 
+
+  if (!tracking) {
+    tft.drawString("L:Y, R:N", 0, 80, 1);
+  }
   tft.drawString("Long press left to", 0, 100, 1);
   tft.drawString("rescan for tags", 0, 110, 1);
   tft.drawString("Long press right to", 0, 130, 1);
@@ -680,16 +684,16 @@ void loop() {
             Serial.print("Set changed");
           }
 
-          //          int yes = refreshOrSelectButton.update1();
-          //          int no = toggleButton.update1();
-          //
-          //          while (yes == 0 && no == 0) {
-          //            yes = refreshOrSelectButton.update1();
-          //            no = toggleButton.update1();
-          //          }
-          //          Serial.println("out of the loop!");
-          //          Serial.println(yes);
-          //          if (yes != 0) {
+                    int yes = refreshOrSelectButton.update1();
+                    int no = toggleButton.update1();
+          
+                    while (yes == 0 && no == 0) {
+                      yes = refreshOrSelectButton.update1();
+                      no = toggleButton.update1();
+                    }
+                    Serial.println("out of the loop!");
+                    Serial.println(yes);
+                    if (yes != 0) {
           pRemoteCharacteristic->writeValue("false", false);
           strcpy(address, myDevice->getAddress().toString().c_str());
           pClient -> disconnect();
@@ -701,10 +705,10 @@ void loop() {
           tft.drawString("record item's name", 0, 60, 1);
           connectWifi();
           state = RECORD_NAME;
-          //          } else {
-          //            pRemoteCharacteristic->writeValue("false", false);
-          //            pClient -> disconnect();
-          //          }
+                    } else {
+                      pRemoteCharacteristic->writeValue("false", false);
+                      pClient -> disconnect();
+                    }
           //          rerender();
 
         } else if (toggleRes == 1 ) {
