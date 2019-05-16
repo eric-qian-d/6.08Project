@@ -51,6 +51,7 @@ const uint8_t PIN_2 = 5; //button 2
 uint32_t primary_timer;
 uint32_t timer;
 uint32_t last_pressed_timer;
+uint32_t buzzer_timer;
 uint32_t timeout_timer;
 
 const uint8_t TIMEOUT_PERIOD = 2500; //milliseconds
@@ -321,6 +322,7 @@ void setup() {
   timeout_timer = millis();
   timer = millis();
   last_pressed_timer = millis();
+  buzzer_timer = millis();
   in_welcome = false;
   toggle_state = 0;
 
@@ -871,13 +873,13 @@ void loop() {
           Serial.println("BEEEEEP");
           ledcWriteTone(0, 1200);
           ledcWriteNote(0, NOTE_C, 1);
-          delay(500);
+          buzzer_timer = millis();
+          while(millis() - buzzer_timer < 500);
 
-          digitalWrite(buzzerPin, HIGH);
           ledcWriteTone(0, 800);
-          ledcWriteNote(0, NOTE_C, 1);
-          delay(500);
-          
+          ledcWriteNote(0, NOTE_C, 1); 
+          buzzer_timer = millis();
+          while(millis() - buzzer_timer < 500);
         }
       }
       break;
