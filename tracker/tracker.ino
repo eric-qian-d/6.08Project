@@ -236,8 +236,8 @@ void rerender() {
           tft.drawString(">", 0, 10 * (i + 1), 1); //change back to just i
         }
       }
-      tft.drawString("Short press right", 0, 70, 1);
-      tft.drawString("to scroll ", 0, 80, 1);
+//      tft.drawString("Short press right", 0, 70, 1);
+//      tft.drawString("to scroll ", 0, 80, 1);
       tft.drawString("Long press left to", 0, 100, 1);
       tft.drawString("rescan for tags", 0, 110, 1);
       tft.drawString("Long press right to", 0, 130, 1);
@@ -397,8 +397,10 @@ void welcome() {
   tft.drawString("View registered", 10, 50, 1);
   tft.drawString("items", 10, 60, 1);
   tft.drawString(select_char, 2, (toggle_state + 3) * 10, 1);
-  tft.drawString("Long press left to", 0, 120, 1);
-  tft.drawString("select action!", 0, 130, 1);
+  tft.drawString("Short press left to", 0, 110, 1);
+  tft.drawString("select action!", 0, 120, 1);
+  tft.drawString("Short press right to", 0, 140, 1);
+  tft.drawString("scroll!", 0, 150, 1);
 
   fetch_weather_data();
   disconnectWifi();
@@ -536,13 +538,14 @@ void loop() {
         if (!in_welcome) {
           welcome(); // welcome the user
         }
-        toggle = refreshOrSelectButton.update1();
-        if (toggle == SHORTPRESS) {
+        int refreshOrSelectRes = refreshOrSelectButton.update1();
+        int toggleRes = toggleButton.update1();
+        if (toggleRes == SHORTPRESS) {
           tft.drawString(" ", 2, 10 * (toggle_state + 3), 1);
           toggle_state += 1;
           toggle_state %= 3;
           tft.drawString(select_char, 2, 10 * (toggle_state + 3), 1);
-        } else if (toggle == LONGPRESS) {
+        } else if ( refreshOrSelectRes == SHORTPRESS) {
           in_welcome = false;
           if (toggle_state == 0) {
             register_prompt();
@@ -691,7 +694,8 @@ void loop() {
         if (toggleRes == SHORTPRESS) {
           tft.fillScreen(TFT_BLACK);
           tft.drawString("Hold left button to", 0, 50, 1);
-          tft.drawString("record item description", 0, 60, 1);
+          tft.drawString("record item", 0, 60, 1);
+          tft.drawString("description", 0, 70, 1);
           Serial.println("transitioning to RECORD_DESCRIPTION");
           memset(name_transcript, 0, strlen(name_transcript));
           strcpy(name_transcript, temp_transcript);
@@ -756,7 +760,7 @@ void loop() {
           do_http_request("608dev.net", request_buffer, response, OUT_BUFFER_SIZE, RESPONSE_TIMEOUT, true);
           //tft.println(response); //print the result
           tft.fillScreen(TFT_BLACK);
-          tft.drawString(name_transcript, 0, 10, 2);
+          tft.drawString(name_transcript, 0, 10, 1);
           tft.drawString(" has been registered", 0, 20, 1);
           memset(name_transcript, 0, strlen(name_transcript));
           memset(description_transcript, 0, strlen(description_transcript));
