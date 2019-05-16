@@ -434,7 +434,7 @@ void welcome() {
   tft.drawString("Short press right to", 0, 140, 1);
   tft.drawString("scroll!", 0, 150, 1);
 
-  fetch_weather_data();
+//  fetch_weather_data();
   disconnectWifi();
   // fetch_calendar_data();
 }
