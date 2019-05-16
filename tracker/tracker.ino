@@ -131,7 +131,7 @@ WiFiClientSecure client; //global WiFiClient Secure object
 boolean in_welcome;
 char select_char[] = "-"; // selection indicator variable
 char address[400]; // stores uuid
-char prevPairedId[5][15]; //tracks address of previously paired device
+char prevPairedId[5][20]; //tracks address of previously paired device
 char prevPairedName[5][15]; //tracks given name of previously paired device
 char prevPairedSyncName[5][15]; //tracks given name of previously paired device, such that the indexes align with devices[]
 
@@ -485,10 +485,12 @@ void load_paired_items() {
   {
     prevPairedPtr++;
     Serial.println("i'm in the loop");
+    memset(prevPairedName[index], 0, strlen(prevPairedName[index]));
     strcpy(prevPairedName[index], ptr);
 
     ptr = strtok(NULL, "\n");
     Serial.println(ptr);
+    memset(prevPairedId[index], 0, strlen(prevPairedId[index]));
     strcpy(prevPairedId[index], ptr);
     ptr = strtok(NULL, "\n");
     Serial.println(ptr);
@@ -497,7 +499,7 @@ void load_paired_items() {
       break;
     }
     Serial.println(prevPairedName[index]);
-    Serial.println(prevPairedName[index]);
+    Serial.println(prevPairedId[index]);
     index++;
   }
 
@@ -801,10 +803,10 @@ void loop() {
           return;
         }
 
-        //        for (int i = 0; i < 5; i++) {
-        //          memset(prevPairedId[i], 0, strlen(prevPairedId[i]));
-        //          memset(prevPairedName[i], 0, strlen(prevPairedName[i]));
-        //        }
+                for (int i = 0; i < 5; i++) {
+                  memset(prevPairedId[i], 0, strlen(prevPairedId[i]));
+                  memset(prevPairedName[i], 0, strlen(prevPairedName[i]));
+                }
         //  Serial.print(refreshOrSelectRes);
         //  Serial.println(toggleRes);
 
