@@ -184,6 +184,8 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
       } else  {
         if (advertisedDevice.haveServiceUUID() && strcmp(advertisedDevice.getServiceUUID().toString().c_str(), test) == 0) {
           for (int i = 0; i < prevPairedPtr; i++) {
+            Serial.println(deviceAddress);
+            Serial.println(prevPairedId[i]);
             if (strcmp(deviceAddress, prevPairedId[i]) == 0) {
               if (arrayPtr < 4) {
                 Serial.println("WE FOUND A REGISTERED DEVICE");
@@ -209,13 +211,16 @@ void rerender() {
 
   for (int i = 0; i < arrayPtr; i++) {
     char deviceName[20];
-    if (tracking) {
+//    if (tracking) {
       for (int i = 0; i < arrayPtr; i++) {
         char deviceName[20];
         if (tracking) {
-          strcpy(deviceName, prevPairedName[i]);
+          Serial.print("name should be: ");
+          Serial.println(prevPairedSyncName[i]);
+          strcpy(deviceName, prevPairedSyncName[i]);
+          Serial.println(deviceName);
           tft.setTextColor(TFT_WHITE, TFT_BLACK);
-          for (int j = 0; j < 10; j++) {
+          for (int j = 0; j < selectPtr; j++) {
             if (selected[j] == i) {
               tft.setTextColor(TFT_GREEN, TFT_BLACK);
             }
@@ -235,7 +240,7 @@ void rerender() {
       tft.drawString("rescan for tags", 0, 110, 1);
       tft.drawString("Long press right to", 0, 130, 1);
       tft.drawString("return to main menu", 0, 140, 1);
-    }
+//    }
   }
 }
 
@@ -258,12 +263,20 @@ class MyClientCallback : public BLEClientCallbacks {
               lostDeviceIndex = i;
             }
           }
+          tft.fillScreen(TFT_BLACK);
+          tft.drawString("Items lost!", 0, 10, 1);
+          char lostDeviceName[20];
+          strcpy(lostDeviceName, prevPairedSyncName[lostDeviceIndex]);
+          
+          Serial.print("lost device index: ");
+          Serial.println(lostDeviceIndex);
+          Serial.println(lostDeviceName);
+
+          
+          tft.drawString(lostDeviceName, 0, 20, 1);
+          tft.drawString("Hold right button to quit", 0, 30, 1);
           
         }
-        tft.fillScreen(TFT_BLACK);
-        tft.drawString("Connection lost!", 0, 50, 1);
-        tft.drawString("Press right button to exit.", 0, 60, 1);
-        beep = true;
       }
     }
 };
@@ -463,6 +476,7 @@ void load_paired_items() {
   Serial.println("populating prevPaired");
   while (ptr !=  NULL)
   {
+    prevPairedPtr++;
     Serial.println("i'm in the loop");
     strcpy(prevPairedName[index], ptr);
 
@@ -491,7 +505,7 @@ void load_paired_items() {
 void loop() {
   button_state = digitalRead(PIN_1);
   button_state2 = digitalRead(PIN_2);
-  Serial.println(button_state);
+//  Serial.println(button_state);
 
   // autodim after 10 seconds
   if (button_state != 1 || button_state2 != 1) {
@@ -775,6 +789,7 @@ void loop() {
           firstDisconnectedDevice = true;
           ledcWrite(0, 0);
           state = IDLE;
+          selectPtr = 0;
           return;
         }
 
@@ -795,10 +810,14 @@ void loop() {
           delay(5000);//wait for scan to terminate
           pBLEScan->clearResults();   // delete results fromBLEScan buffer to release memory
           rerender();
-          tft.drawString("TRACK", 0, 10, 1);
+//          tft.drawString("TRACK", 0, 10, 1);
+
         } else if (refreshOrSelectRes == 1) {//select the current
           Serial.println("in the connecting block");
           BLEAdvertisedDevice* myDevice = devices[scrollPosition];
+
+          selected[selectPtr] = scrollPosition;
+          selectPtr++;
 
           Serial.println(myDevice->getServiceUUID().toString().c_str());
 
@@ -835,7 +854,6 @@ void loop() {
 
         } else if (toggleRes == 1 ) {
           scrollPosition = (scrollPosition + 1) % (arrayPtr);
-          selected[selectPtr] = scrollPosition;
           rerender();
         }
         else if (toggleRes == 2) {
@@ -852,12 +870,7 @@ void loop() {
           ledcWriteTone(0, 800);
           ledcWriteNote(0, NOTE_C, 1);
           delay(500);
-          tft.fillScreen(TFT_BLACK);
-          tft.drawString("Items lost!", 0, 10, 1);
-          char lostDeviceName[20];
-          strcpy(lostDeviceName, prevPairedSyncName[lostDeviceIndex]);
-          tft.drawString("Hold right button to quit", 0, 30, 1);
-          tft.drawString("Hold right button to quit", 0, 30, 1);
+          
         }
       }
       break;
