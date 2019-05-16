@@ -32,7 +32,9 @@ def request_handler(request):
 
 		# if the item with id has already been paired
 		if existing_item:
-			out = "item with id " + item_id + " already paired"
+			c.execute('''UPDATE my_table SET name=? WHERE item_id=?;''', (name, item_id))
+			c.execute('''UPDATE my_table SET description=? WHERE item_id=?;''', (description, item_id))
+			out = "name and description updated for\n" + name
 
 		# if item already exists with this name
 		elif existing_name:
@@ -40,6 +42,8 @@ def request_handler(request):
 
 		# registering an item
 		else:
+			if len(name) == 0:
+				name = " "
 			c.execute('''INSERT into my_table VALUES (?,?,?);''', (item_id, name, description))
 			out = name + " successfully paired!"
 
@@ -53,23 +57,25 @@ def request_handler(request):
 		out = ""
 		table = c.execute('''SELECT name,item_id,description FROM my_table;''').fetchall()
 
-		items = []
-		ids = []
+		total = []
 		for item,item_id,description in table:
-			items.append(item)
-			ids.append(item_id)
+			total.append([item, item_id, description])
+		sorted_items = sorted(total, key=lambda x:x[0])
 
 		if 'return_id' in request['values']:
-			for i in ids:
-				out += i + ","
+			for i in sorted_items:
+				out += i[1] + "\n"
+
+		elif 'return_name_id' in request['values']:
+			for i in sorted_items:
+				out += i[0] + "\n" + i[1]+ "\n"
 
 		else:
-			sorted_items = sorted(items)
+			sorted_items = sorted(total, key=lambda x:x[0])
 			for i in sorted_items:
-				out += i + "\n"
+				out += i[0] + "\n"
 
 		conn.commit()
 		conn.close()
 		
 		return out
-		
