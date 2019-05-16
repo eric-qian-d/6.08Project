@@ -115,6 +115,7 @@ int old_button_state; //used for detecting button edges
 uint8_t button_state2; //used for containing button state and detecting edges
 int old_button_state2; //used for detecting button edges
 uint32_t time_since_sample;      // used for microsecond timing
+uint32_t time_since_loading;
 
 char temp_transcript[1000];
 char name_transcript[100];
@@ -154,6 +155,7 @@ int buzzerPin = 22;
 bool connectSuccessful = false;
 int selected[10];
 int selectPtr = 0;
+int loadPos = 0;
 
 bool firstDisconnectedDevice = true;
 int lostDeviceIndex;
@@ -209,40 +211,45 @@ void rerender() {
   Serial.println("IN RERENDR");
   Serial.println(arrayPtr);
 
+  tft.drawString("Long press left to", 0, 100, 1);
+  tft.drawString("rescan for tags", 0, 110, 1);
+  tft.drawString("Long press right to", 0, 130, 1);
+  tft.drawString("return to main menu", 0, 140, 1);
+  
+  if (arrayPtr == 0) {
+    tft.drawString("No tags found :(", 30, 50, 2);
+    return;
+  }
+  
   for (int i = 0; i < arrayPtr; i++) {
     char deviceName[20];
-//    if (tracking) {
-      for (int i = 0; i < arrayPtr; i++) {
-        char deviceName[20];
-        if (tracking) {
-          Serial.print("name should be: ");
-          Serial.println(prevPairedSyncName[i]);
-          strcpy(deviceName, prevPairedSyncName[i]);
-          Serial.println(deviceName);
-          tft.setTextColor(TFT_WHITE, TFT_BLACK);
-          for (int j = 0; j < selectPtr; j++) {
-            if (selected[j] == i) {
-              tft.setTextColor(TFT_GREEN, TFT_BLACK);
-            }
-          }
-        } else {
-          //      strcpy(deviceName, prevPairedName[i]);
-          strcpy(deviceName, devices[i]->getAddress().toString().c_str());
-        }
-
-        tft.drawString(deviceName, 10, 10 * ( i + 1), 1); //change back to just i
+    //    if (tracking) {
+    for (int i = 0; i < arrayPtr; i++) {
+      char deviceName[20];
+      if (tracking) {
+        Serial.print("name should be: ");
+        Serial.println(prevPairedSyncName[i]);
+        strcpy(deviceName, prevPairedSyncName[i]);
+        Serial.println(deviceName);
         tft.setTextColor(TFT_WHITE, TFT_BLACK);
-        if (i == scrollPosition) {
-          tft.drawString(">", 0, 10 * (i + 1), 1); //change back to just i
+        for (int j = 0; j < selectPtr; j++) {
+          if (selected[j] == i) {
+            tft.setTextColor(TFT_GREEN, TFT_BLACK);
+          }
         }
+      } else {
+        //      strcpy(deviceName, prevPairedName[i]);
+        strcpy(deviceName, devices[i]->getAddress().toString().c_str());
       }
-//      tft.drawString("Short press right", 0, 70, 1);
-//      tft.drawString("to scroll ", 0, 80, 1);
-      tft.drawString("Long press left to", 0, 100, 1);
-      tft.drawString("rescan for tags", 0, 110, 1);
-      tft.drawString("Long press right to", 0, 130, 1);
-      tft.drawString("return to main menu", 0, 140, 1);
-//    }
+
+      tft.drawString(deviceName, 10, 10 * ( i + 1), 1); //change back to just i
+      tft.setTextColor(TFT_WHITE, TFT_BLACK);
+      if (i == scrollPosition) {
+        tft.drawString(">", 0, 10 * (i + 1), 1); //change back to just i
+      }
+    }
+
+
   }
 }
 
@@ -269,16 +276,16 @@ class MyClientCallback : public BLEClientCallbacks {
           tft.drawString("Items lost!", 0, 10, 1);
           char lostDeviceName[20];
           strcpy(lostDeviceName, prevPairedSyncName[lostDeviceIndex]);
-          
+
           Serial.print("lost device index: ");
           Serial.println(lostDeviceIndex);
           Serial.println(lostDeviceName);
 
-          
+
           tft.drawString(lostDeviceName, 0, 20, 1);
           tft.drawString("Hold right button", 0, 30, 1);
           tft.drawString(" to quit", 0, 40, 1);
-          
+
         }
       }
     }
@@ -414,6 +421,24 @@ void register_prompt() {
   tft.drawString("REGISTER", 0, 30, 2);
   tft.drawString("Long press left to", 0, 50, 1);
   tft.drawString("scan for tags", 0, 60, 1);
+  tft.drawString("Long press right to", 0, 130, 1);
+  tft.drawString("return to main menu", 0, 140, 1);
+}
+
+void track_prompt() {
+  tft.fillScreen(TFT_BLACK);
+  tft.drawString("TRACK", 0, 30, 2);
+  tft.drawString("Long press left to", 0, 50, 1);
+  tft.drawString("scan for tags", 0, 60, 1);
+  tft.drawString("Long press right to", 0, 130, 1);
+  tft.drawString("return to main menu", 0, 140, 1);
+}
+
+void loading_screen() {
+   tft.drawString(" ", (loadPos % 128) - 1, 70, 1);
+   toggle_state += 1;
+   toggle_state %= 3;
+   tft.drawString("-", loadPos % 128, 70, 1);
 }
 
 void view_registered() {
@@ -427,6 +452,7 @@ void view_registered() {
   do_http_request("608dev.net", item_request_buffer, item_response_buffer, 50, RESPONSE_TIMEOUT, true);
   tft.setCursor(0, 10, 1); // set the cursor
   tft.drawString("Registered items:", 0, 0, 2);
+  tft.println("\n");
   tft.println(item_response_buffer);
   tft.drawString("Short press any", 0, 120, 1);
   tft.drawString("button to go back", 0, 130, 1);
@@ -443,7 +469,8 @@ void view_recommendations() {
   strcat(item_request_buffer, "\r\n"); //new line from header to body
   do_http_request("608dev.net", item_request_buffer, item_response_buffer, 50, RESPONSE_TIMEOUT, true);
   tft.setCursor(0, 10, 1); // set the cursor
-  tft.println("Recommended items:");
+  tft.drawString("Recommended  items:", 0, 0, 2);
+  tft.println("\n");
   tft.println(item_response_buffer);
   tft.drawString("Short press any", 0, 120, 1);
   tft.drawString("button to move on", 0, 130, 1);
@@ -510,7 +537,7 @@ void load_paired_items() {
 void loop() {
   button_state = digitalRead(PIN_1);
   button_state2 = digitalRead(PIN_2);
-//  Serial.println(button_state);
+  //  Serial.println(button_state);
 
   // autodim after 15 seconds
   if (button_state != 1 || button_state2 != 1) {
@@ -526,14 +553,13 @@ void loop() {
     ledcWrite(1, 2048);
     Serial.println("dimming");
     dim = true;
-  } 
+  }
   backlight.update();
 
   //  Serial.println(state);
 
   switch (state) {
     case IDLE: {
-
         if (!in_welcome) {
           welcome(); // welcome the user
         }
@@ -551,6 +577,7 @@ void loop() {
             state = REGISTER;
           } else if (toggle_state == 1) {
             backlight.set_duty_cycle(1);
+            track_prompt();
             state = TRACK;
           } else if (toggle_state == 2) {
             view_registered();
@@ -577,8 +604,10 @@ void loop() {
 
         if (refreshOrSelectRes == 2) {//refresh
           Serial.println("REFERESHING");
+          time_since_loading = millis();
           tft.fillScreen(TFT_BLACK);
           tft.drawCentreString("Loading items", 3, 50, 2);
+//          loading_screen();
           arrayPtr = 0;
           BLEScanResults foundDevices = pBLEScan->start(2, false);
           delay(5000);//wait for scan to terminate
@@ -816,7 +845,7 @@ void loop() {
           delay(5000);//wait for scan to terminate
           pBLEScan->clearResults();   // delete results fromBLEScan buffer to release memory
           rerender();
-//          tft.drawString("TRACK", 0, 10, 1);
+          //          tft.drawString("TRACK", 0, 10, 1);
 
         } else if (refreshOrSelectRes == 1) {//select the current
           Serial.println("in the connecting block");
@@ -877,7 +906,7 @@ void loop() {
           ledcWriteTone(0, 800);
           ledcWriteNote(0, NOTE_C, 1);
           delay(500);
-          
+
         }
       }
       break;
