@@ -162,7 +162,7 @@ bool reconnectAttempted = false;
 char connectedAddresses[5][20];
 int numConnected = 0;
 
-bool firstDisconnectedDevice = true;
+bool firstDisconnectedDevice = false;
 int lostDeviceIndex;
 
 Button refreshOrSelectButton(refreshOrSelectPin);
@@ -283,7 +283,7 @@ class MyClientCallback : public BLEClientCallbacks {
       if (tracking) {
 //        if (firstDisconnectedDevice) {
           
-          firstDisconnectedDevice = false;
+          firstDisconnectedDevice = true;
 
 //          beep = true;
 //          Serial.println(clients[0] == pclient);
@@ -434,7 +434,7 @@ void welcome() {
   tft.drawString("Short press right to", 0, 140, 1);
   tft.drawString("scroll!", 0, 150, 1);
 
-  fetch_weather_data();
+//  fetch_weather_data();
   disconnectWifi();
   // fetch_calendar_data();
 }
