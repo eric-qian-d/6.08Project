@@ -51,6 +51,7 @@ const uint8_t PIN_2 = 5; //button 2
 uint32_t primary_timer;
 uint32_t timer;
 uint32_t last_pressed_timer;
+uint32_t buzzer_timer;
 uint32_t timeout_timer;
 
 const uint8_t TIMEOUT_PERIOD = 2500; //milliseconds
@@ -131,7 +132,7 @@ WiFiClientSecure client; //global WiFiClient Secure object
 boolean in_welcome;
 char select_char[] = "-"; // selection indicator variable
 char address[400]; // stores uuid
-char prevPairedId[5][15]; //tracks address of previously paired device
+char prevPairedId[5][20]; //tracks address of previously paired device
 char prevPairedName[5][15]; //tracks given name of previously paired device
 char prevPairedSyncName[5][15]; //tracks given name of previously paired device, such that the indexes align with devices[]
 
@@ -262,13 +263,18 @@ class MyClientCallback : public BLEClientCallbacks {
     void onDisconnect(BLEClient* pclient) {
       connected = false;
       Serial.println("onDisconnect");
+//      Serial.println(pclient);
 
       if (tracking) {
         if (firstDisconnectedDevice) {
-          beep = true;
+          
           firstDisconnectedDevice = false;
+          beep = true;
+          Serial.println(clients[0] == pclient);
+          Serial.println(clients[1] == pclient);
           for (int i = 0; i < 5; i++) {
             if (clients[i] == pclient) {
+//              Serial.print
               lostDeviceIndex = i;
             }
           }
@@ -328,6 +334,7 @@ void setup() {
   timeout_timer = millis();
   timer = millis();
   last_pressed_timer = millis();
+  buzzer_timer = millis();
   in_welcome = false;
   toggle_state = 0;
 
@@ -364,6 +371,7 @@ void setup() {
     pClient->setClientCallbacks(new MyClientCallback());
     clients[i] = pClient;
   }
+  Serial.println(clients[0] == clients[1]);
 
 }
 
@@ -494,6 +502,7 @@ void show_selection_menu() {
 }
 
 void load_paired_items() {
+  prevPairedPtr = 0;
   connectWifi();
   char item_response_buffer[OUT_BUFFER_SIZE];
   char item_request_buffer[IN_BUFFER_SIZE];
@@ -510,10 +519,12 @@ void load_paired_items() {
   {
     prevPairedPtr++;
     Serial.println("i'm in the loop");
+    memset(prevPairedName[index], 0, strlen(prevPairedName[index]));
     strcpy(prevPairedName[index], ptr);
 
     ptr = strtok(NULL, "\n");
     Serial.println(ptr);
+    memset(prevPairedId[index], 0, strlen(prevPairedId[index]));
     strcpy(prevPairedId[index], ptr);
     ptr = strtok(NULL, "\n");
     Serial.println(ptr);
@@ -522,7 +533,7 @@ void load_paired_items() {
       break;
     }
     Serial.println(prevPairedName[index]);
-    Serial.println(prevPairedName[index]);
+    Serial.println(prevPairedId[index]);
     index++;
   }
 
@@ -539,8 +550,9 @@ void loop() {
   button_state2 = digitalRead(PIN_2);
   //  Serial.println(button_state);
 
-  // autodim after 15 seconds
+  // autodim after 10 seconds
   if (button_state != 1 || button_state2 != 1) {
+    Serial.println("updating pressed timer");
     last_pressed_timer = millis();
     if (dim) {
       dim = false;
@@ -555,7 +567,7 @@ void loop() {
     dim = true;
   }
   backlight.update();
-
+  
   //  Serial.println(state);
 
   switch (state) {
@@ -651,32 +663,32 @@ void loop() {
             Serial.print("Set changed");
           }
 
-          int yes = refreshOrSelectButton.update1();
-          int no = toggleButton.update1();
-
-          while (yes == 0 && no == 0) {
-            yes = refreshOrSelectButton.update1();
-            no = toggleButton.update1();
-          }
-          Serial.println("out of the loop!");
-          Serial.println(yes);
-          if (yes != 0) {
-            pRemoteCharacteristic->writeValue("false", false);
-            strcpy(address, myDevice->getAddress().toString().c_str());
-            pClient -> disconnect();
-            tft.fillScreen(TFT_BLACK);
-            tft.drawString("Success!", 0, 50, 1);
-            while (millis() - timeout_timer < TIMEOUT_PERIOD);
-            tft.fillScreen(TFT_BLACK);
-            tft.drawString("Hold left button to", 0, 50, 1);
-            tft.drawString("record item's name", 0, 60, 1);
-            connectWifi();
-            state = RECORD_NAME;
-          } else {
-            pRemoteCharacteristic->writeValue("false", false);
-            pClient -> disconnect();
-          }
-          rerender();
+          //          int yes = refreshOrSelectButton.update1();
+          //          int no = toggleButton.update1();
+          //
+          //          while (yes == 0 && no == 0) {
+          //            yes = refreshOrSelectButton.update1();
+          //            no = toggleButton.update1();
+          //          }
+          //          Serial.println("out of the loop!");
+          //          Serial.println(yes);
+          //          if (yes != 0) {
+          pRemoteCharacteristic->writeValue("false", false);
+          strcpy(address, myDevice->getAddress().toString().c_str());
+          pClient -> disconnect();
+          tft.fillScreen(TFT_BLACK);
+          tft.drawString("Success!", 0, 50, 1);
+          while (millis() - timeout_timer < TIMEOUT_PERIOD);
+          tft.fillScreen(TFT_BLACK);
+          tft.drawString("Hold left button to", 0, 50, 1);
+          tft.drawString("record item's name", 0, 60, 1);
+          connectWifi();
+          state = RECORD_NAME;
+          //          } else {
+          //            pRemoteCharacteristic->writeValue("false", false);
+          //            pClient -> disconnect();
+          //          }
+          //          rerender();
 
         } else if (toggleRes == 1 ) {
           scrollPosition = (scrollPosition + 1) % (arrayPtr);
@@ -812,7 +824,7 @@ void loop() {
         }
       }
       break;
-
+      
     case TRACK:
       {
         tracking = true;
@@ -828,10 +840,10 @@ void loop() {
           return;
         }
 
-        //        for (int i = 0; i < 5; i++) {
-        //          memset(prevPairedId[i], 0, strlen(prevPairedId[i]));
-        //          memset(prevPairedName[i], 0, strlen(prevPairedName[i]));
-        //        }
+                for (int i = 0; i < 5; i++) {
+                  memset(prevPairedId[i], 0, strlen(prevPairedId[i]));
+                  memset(prevPairedName[i], 0, strlen(prevPairedName[i]));
+                }
         //  Serial.print(refreshOrSelectRes);
         //  Serial.println(toggleRes);
 
@@ -900,13 +912,13 @@ void loop() {
           Serial.println("BEEEEEP");
           ledcWriteTone(0, 1200);
           ledcWriteNote(0, NOTE_C, 1);
-          delay(500);
+          buzzer_timer = millis();
+          while(millis() - buzzer_timer < 500);
 
-          digitalWrite(buzzerPin, HIGH);
           ledcWriteTone(0, 800);
           ledcWriteNote(0, NOTE_C, 1);
-          delay(500);
-
+          buzzer_timer = millis();
+          while(millis() - buzzer_timer < 500);
         }
       }
       break;
