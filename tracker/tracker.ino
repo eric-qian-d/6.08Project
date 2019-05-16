@@ -236,6 +236,8 @@ void rerender() {
           tft.drawString(">", 0, 10 * (i + 1), 1); //change back to just i
         }
       }
+      tft.drawString("Short press right", 0, 70, 1);
+      tft.drawString("to scroll ", 0, 80, 1);
       tft.drawString("Long press left to", 0, 100, 1);
       tft.drawString("rescan for tags", 0, 110, 1);
       tft.drawString("Long press right to", 0, 130, 1);
@@ -274,7 +276,8 @@ class MyClientCallback : public BLEClientCallbacks {
 
           
           tft.drawString(lostDeviceName, 0, 20, 1);
-          tft.drawString("Hold right button to quit", 0, 30, 1);
+          tft.drawString("Hold right button", 0, 30, 1);
+          tft.drawString(" to quit", 0, 40, 1);
           
         }
       }
@@ -660,7 +663,7 @@ void loop() {
         Serial.println("transitioning to NAME_VERIFY");
         tft.fillScreen(TFT_BLACK);
         tft.drawString("Is", 0, 10, 1);
-        tft.drawString(temp_transcript, 0, 20, 2);
+        tft.drawString(temp_transcript, 0, 20, 1);
         tft.drawString("correct?", 0, 30, 1);
         tft.drawString("ACCEPT: short press", 0, 120, 1);
         tft.drawString("right button", 0, 130, 1);
@@ -688,7 +691,7 @@ void loop() {
         if (toggleRes == SHORTPRESS) {
           tft.fillScreen(TFT_BLACK);
           tft.drawString("Hold left button to", 0, 50, 1);
-          tft.drawString("record item's name", 0, 60, 1);
+          tft.drawString("record item description", 0, 60, 1);
           Serial.println("transitioning to RECORD_DESCRIPTION");
           memset(name_transcript, 0, strlen(name_transcript));
           strcpy(name_transcript, temp_transcript);
@@ -709,7 +712,7 @@ void loop() {
         Serial.println("transitioning to DESCRIPTION_VERIFY");
         tft.fillScreen(TFT_BLACK);
         tft.drawString("Is", 0, 10, 1);
-        tft.drawString(temp_transcript, 0, 20, 2);
+        tft.drawString(temp_transcript, 0, 20, 1);
         tft.drawString("correct?", 0, 30, 1);
         tft.drawString("ACCEPT: short press", 0, 120, 1);
         tft.drawString("right button", 0, 130, 1);
