@@ -261,12 +261,9 @@ class MyClientCallback : public BLEClientCallbacks {
               lostDeviceIndex = i;
             }
           }
-          
+
         }
 
-
-
-        
         tft.fillScreen(TFT_BLACK);
         tft.drawString("Connection lost!", 0, 50, 1);
         tft.drawString("Press right button to exit.", 0, 60, 1);
@@ -500,9 +497,8 @@ void loop() {
   button_state2 = digitalRead(PIN_2);
   Serial.println(button_state);
 
-  // autodim after 10 seconds
+  // autodim after 15 seconds
   if (button_state != 1 || button_state2 != 1) {
-    Serial.println("updating pressed timer");
     last_pressed_timer = millis();
     if (dim) {
       dim = false;
@@ -515,14 +511,14 @@ void loop() {
     ledcWrite(1, 2048);
     Serial.println("dimming");
     dim = true;
-  }
+  } 
   backlight.update();
-  
+
   //  Serial.println(state);
 
   switch (state) {
     case IDLE: {
-        
+
         if (!in_welcome) {
           welcome(); // welcome the user
         }
@@ -610,32 +606,32 @@ void loop() {
             Serial.print("Set changed");
           }
 
-          //          int yes = refreshOrSelectButton.update1();
-          //          int no = toggleButton.update1();
-          //
-          //          while (yes == 0 && no == 0) {
-          //            yes = refreshOrSelectButton.update1();
-          //            no = toggleButton.update1();
-          //          }
-          //          Serial.println("out of the loop!");
-          //          Serial.println(yes);
-          //          if (yes != 0) {
-          pRemoteCharacteristic->writeValue("false", false);
-          strcpy(address, myDevice->getAddress().toString().c_str());
-          pClient -> disconnect();
-          tft.fillScreen(TFT_BLACK);
-          tft.drawString("Success!", 0, 50, 1);
-          while (millis() - timeout_timer < TIMEOUT_PERIOD);
-          tft.fillScreen(TFT_BLACK);
-          tft.drawString("Hold left button to", 0, 50, 1);
-          tft.drawString("record item's name", 0, 60, 1);
-          connectWifi();
-          state = RECORD_NAME;
-          //          } else {
-          //            pRemoteCharacteristic->writeValue("false", false);
-          //            pClient -> disconnect();
-          //          }
-          //          rerender();
+          int yes = refreshOrSelectButton.update1();
+          int no = toggleButton.update1();
+
+          while (yes == 0 && no == 0) {
+            yes = refreshOrSelectButton.update1();
+            no = toggleButton.update1();
+          }
+          Serial.println("out of the loop!");
+          Serial.println(yes);
+          if (yes != 0) {
+            pRemoteCharacteristic->writeValue("false", false);
+            strcpy(address, myDevice->getAddress().toString().c_str());
+            pClient -> disconnect();
+            tft.fillScreen(TFT_BLACK);
+            tft.drawString("Success!", 0, 50, 1);
+            while (millis() - timeout_timer < TIMEOUT_PERIOD);
+            tft.fillScreen(TFT_BLACK);
+            tft.drawString("Hold left button to", 0, 50, 1);
+            tft.drawString("record item's name", 0, 60, 1);
+            connectWifi();
+            state = RECORD_NAME;
+          } else {
+            pRemoteCharacteristic->writeValue("false", false);
+            pClient -> disconnect();
+          }
+          rerender();
 
         } else if (toggleRes == 1 ) {
           scrollPosition = (scrollPosition + 1) % (arrayPtr);
@@ -770,7 +766,7 @@ void loop() {
         }
       }
       break;
-      
+
     case TRACK:
       {
         tracking = true;
