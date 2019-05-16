@@ -581,7 +581,7 @@ void loop() {
       ledcWrite(1, 4095);
     }
   }
-  if (!dim && millis() - last_pressed_timer > 15000) {
+  if (state == IDLE && !dim && millis() - last_pressed_timer > 15000) {
     backlight.set_duty_cycle(0.5);
     ledcWrite(1, 2048);
     Serial.println("dimming");
@@ -855,7 +855,7 @@ void loop() {
         if (beep && toggleRes == 2) {
           tracking = false;
           beep = false;
-          firstDisconnectedDevice = true;
+          firstDisconnectedDevice = false;
           ledcWrite(0, 0);
           state = IDLE;
           selectPtr = 0;
@@ -897,7 +897,7 @@ void loop() {
           Serial.println(myDevice->getServiceUUID().toString().c_str());
 
           BLEClient*  pClient  = clients[scrollPosition];
-
+          Serial.println(pClient -> isConnected());
           Serial.println("ready to connect");
           connectSuccessful = pClient->connect(myDevice);  // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
           Serial.println(" - Connected to server");
