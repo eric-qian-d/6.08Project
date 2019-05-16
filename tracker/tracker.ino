@@ -775,6 +775,7 @@ void loop() {
       {
         toggle = refreshOrSelectButton.update1();
         int right = toggleButton.update1();
+        fetch_weather_data();
         Serial.println(toggle);
         if (toggle == SHORTPRESS || right == SHORTPRESS) {
           tft.fillScreen(TFT_BLACK);
@@ -878,7 +879,6 @@ void loop() {
           ledcWriteTone(0, 800);
           ledcWriteNote(0, NOTE_C, 1);
           delay(500);
-          
         }
       }
       break;
