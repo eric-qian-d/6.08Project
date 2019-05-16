@@ -851,6 +851,7 @@ void loop() {
             pRemoteCharacteristic->writeValue("true", false);
             Serial.print("Set changed");
           }
+          rerender();
 
         } else if (toggleRes == 1 ) {
           scrollPosition = (scrollPosition + 1) % (arrayPtr);
